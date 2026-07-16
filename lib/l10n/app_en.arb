@@ -1,0 +1,28 @@
+{
+  "@@locale": "en",
+  "openRequests": "Open Requests ({count})",
+  "@openRequests": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cantFind": "Can't Find",
+  "username": "Username",
+  "password": "Password",
+  "loginNow": "Login Now",
+  "dispatched": "Dispatched",
+  "newRequest": "NEW REQUEST",
+  "requestSafe": "Request Safe",
+  "receivedSafe": "Received Safe",
+  "customerExperience": "Customer Experience",
+  "stockReceivedFromSafe": "Stock Received\nfrom\nSafe",
+  "welcomeUser": "Welcome, {name}",
+  "@welcomeUser": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "logout": "Logout"
+}

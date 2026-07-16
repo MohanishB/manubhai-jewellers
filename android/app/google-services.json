@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "379544768156",
+    "project_id": "manubhaimlt",
+    "storage_bucket": "manubhaimlt.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:379544768156:android:981651effea4cade452759",
+        "android_client_info": {
+          "package_name": "com.manubhai.manubhaimlt"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAJog1qnN81h3tPa688mB-z7Fz5YyQ7oPQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
