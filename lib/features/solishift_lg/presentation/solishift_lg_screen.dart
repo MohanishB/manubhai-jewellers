@@ -27,9 +27,9 @@ class _SoliShiftLgScreenState extends State<SoliShiftLgScreen> {
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _solitaireCaratController = TextEditingController();
   final TextEditingController _diamondCaratController = TextEditingController();
+  final TextEditingController _budgetController = TextEditingController();
 
   final GlobalKey _customizeSectionKey = GlobalKey();
-  bool _isUpdating = false;
   
 
   @override
@@ -37,6 +37,7 @@ class _SoliShiftLgScreenState extends State<SoliShiftLgScreen> {
     _searchController.dispose();
     _solitaireCaratController.dispose();
     _diamondCaratController.dispose();
+    _budgetController.dispose();
     super.dispose();
   }
 
@@ -55,8 +56,13 @@ class _SoliShiftLgScreenState extends State<SoliShiftLgScreen> {
   );
 }
 
+  void _dismissKeyboard() {
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
+
   
-  void _search({String newSolitaireCt = ''}) {
+  void _search() {
     final authState = context.read<AuthBloc>().state;
     if (authState is! AuthAuthenticated) return;
 
@@ -66,7 +72,6 @@ class _SoliShiftLgScreenState extends State<SoliShiftLgScreen> {
           SoliShiftLgSearchRequested(
             cseId: authState.user.id,
             stockCode: _searchController.text.trim(),
-            newSolitaireCt: newSolitaireCt,
           ),
         );
   }
@@ -100,17 +105,11 @@ class _SoliShiftLgScreenState extends State<SoliShiftLgScreen> {
                   final stockInfo = state.data?.stockInfo;
                   if (stockInfo == null) return;
 
-                  // _solitaireCaratController.text = stockInfo.solitaireWt;
-                  // if (_solitaireCaratController.text.trim().isEmpty) {
-                  //   _solitaireCaratController.text = stockInfo.solitaireWt;
-                  // }
-                  if (!_isUpdating) {
+                  if (!state.showCustomize) {
                     _solitaireCaratController.text = stockInfo.solitaireWt;
+                    _diamondCaratController.text = stockInfo.diamondWt;
+                    _budgetController.clear();
                   }
-                  _isUpdating = false;
-
-                  
-                  _diamondCaratController.text = '${stockInfo.diamondWt} ct';
                 },
                 builder: (context, state) {
                   return LayoutBuilder(
@@ -131,14 +130,14 @@ class _SoliShiftLgScreenState extends State<SoliShiftLgScreen> {
                               controller: _searchController,
                               isTablet: isTablet,
                               loading: state.loading,
-                              onSearch: () => _search(),
+                              onSearch: _search,
                             ),
                             const SizedBox(height: 12),
                             const Divider(height: 1),
                             const SizedBox(height: 12),
                             const Center(
                               child: Text(
-                                'Solishift LG',
+                                'SOLISWITCH',
                                 style: TextStyle(
                                   fontSize: 22,
                                   fontWeight: FontWeight.w800,
@@ -188,6 +187,7 @@ class _SoliShiftLgScreenState extends State<SoliShiftLgScreen> {
                                   key: _customizeSectionKey,
                                   child: _CustomizeSection(
                                     data: state.data!,
+                                    mode: state.mode,
                                     shape: state.shape,
                                     colour: state.colour,
                                     clarity: state.clarity,
@@ -195,7 +195,13 @@ class _SoliShiftLgScreenState extends State<SoliShiftLgScreen> {
                                         _solitaireCaratController,
                                     diamondCaratController:
                                         _diamondCaratController,
+                                    budgetController: _budgetController,
                                     updating: state.pricingUpdating,
+                                    onModeChanged: (mode) {
+                                      context.read<SoliShiftLgBloc>().add(
+                                            SoliShiftLgModeChanged(mode),
+                                          );
+                                    },
                                     onFilterChanged: ({
                                       required shape,
                                       required colour,
@@ -215,51 +221,39 @@ class _SoliShiftLgScreenState extends State<SoliShiftLgScreen> {
                                           );
                                     },
                                     onUpdatePricing: () {
-                                      _isUpdating = true;
-                                      _search(
-                                        newSolitaireCt:
-                                            _solitaireCaratController.text
-                                                .trim(),
-                                      );
+                                      _dismissKeyboard();
+
+                                      final solitaire = double.tryParse(
+                                            _solitaireCaratController.text.trim(),
+                                          ) ?? 0;
+
+                                      if (solitaire > 0) {
+                                        _diamondCaratController.text = '0';
+                                      }
+
+                                      context.read<SoliShiftLgBloc>().add(
+                                            SoliShiftLgCaratUpdateRequested(
+                                              newSolitaireCt:
+                                                  _solitaireCaratController.text
+                                                      .trim(),
+                                              newDiamondCt:
+                                                  _diamondCaratController.text
+                                                      .trim(),
+                                            ),
+                                          );
+                                    },
+                                    onFindDiamond: () {
+                                      _dismissKeyboard();
+
+                                      context.read<SoliShiftLgBloc>().add(
+                                            SoliShiftLgBudgetUpdateRequested(
+                                              budget:
+                                                  _budgetController.text.trim(),
+                                            ),
+                                          );
                                     },
                                   ),
                                 ),
-                                // _CustomizeSection(
-                                //   data: state.data!,
-                                //   shape: state.shape,
-                                //   colour: state.colour,
-                                //   clarity: state.clarity,
-                                //   solitaireCaratController:
-                                //       _solitaireCaratController,
-                                //   diamondCaratController:
-                                //       _diamondCaratController,
-                                //   updating: state.pricingUpdating,
-                                //   onFilterChanged: ({
-                                //     required shape,
-                                //     required colour,
-                                //     required clarity,
-                                //   }) {
-                                //     context.read<SoliShiftLgBloc>().add(
-                                //           SoliShiftLgFilterChanged(
-                                //             shape: shape,
-                                //             colour: colour,
-                                //             clarity: clarity,
-                                //           ),
-                                //         );
-                                //   },
-                                //   onReset: () {
-                                //     context.read<SoliShiftLgBloc>().add(
-                                //           const SoliShiftLgFiltersReset(),
-                                //         );
-                                //   },
-                                
-                                //   onUpdatePricing: () {
-                                //     _search(
-                                //       newSolitaireCt:
-                                //           _solitaireCaratController.text.trim(),
-                                //     );
-                                //   },
-                                // ),
                                 const SizedBox(height: 20),
                                 if (state.filteredTables.isEmpty)
                                   const _InitialMessage(
@@ -269,7 +263,10 @@ class _SoliShiftLgScreenState extends State<SoliShiftLgScreen> {
                                   ...state.filteredTables.map(
                                     (table) => Padding(
                                       padding: const EdgeInsets.only(bottom: 18),
-                                      child: _ComparisonTable(table: table),
+                                      child: _ComparisonTable(
+                                        table: table,
+                                        hideLastColumn: state.mode == 'budget',
+                                      ),
                                     ),
                                   ),
                               ],
@@ -346,7 +343,7 @@ class _InitialMessage extends StatelessWidget {
   final String text;
 
   const _InitialMessage({
-    this.text = 'Search stock code to view Solishift LG details.',
+    this.text = 'Search stock code to view Soliswitch details.',
   });
 
   @override
@@ -523,14 +520,18 @@ class _InfoTable extends StatelessWidget {
   }
 }
 
+
 class _CustomizeSection extends StatelessWidget {
   final SoliShiftLgData data;
+  final String mode;
   final String shape;
   final String colour;
   final String clarity;
   final TextEditingController solitaireCaratController;
   final TextEditingController diamondCaratController;
+  final TextEditingController budgetController;
   final bool updating;
+  final ValueChanged<String> onModeChanged;
   final void Function({
     required String shape,
     required String colour,
@@ -538,23 +539,29 @@ class _CustomizeSection extends StatelessWidget {
   }) onFilterChanged;
   final VoidCallback onReset;
   final VoidCallback onUpdatePricing;
+  final VoidCallback onFindDiamond;
 
   const _CustomizeSection({
     required this.data,
+    required this.mode,
     required this.shape,
     required this.colour,
     required this.clarity,
     required this.solitaireCaratController,
     required this.diamondCaratController,
+    required this.budgetController,
     required this.updating,
+    required this.onModeChanged,
     required this.onFilterChanged,
     required this.onReset,
     required this.onUpdatePricing,
+    required this.onFindDiamond,
   });
 
   @override
   Widget build(BuildContext context) {
     final filters = data.filters;
+    final isCarat = mode == 'carat';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -563,34 +570,71 @@ class _CustomizeSection extends StatelessWidget {
           '2. Customize Lab Grown Ring',
           style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
         ),
-        const SizedBox(height: 22),
-        Wrap(
-          spacing: 14,
-          runSpacing: 14,
-          crossAxisAlignment: WrapCrossAlignment.end,
-          children: [
-            _TextInput(
-              label: 'Solitaire Carat',
-              controller: solitaireCaratController,
-              readOnly: false,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            ),
-            _TextInput(
-              label: 'Diamond Carat',
-              controller: diamondCaratController,
-              readOnly: true,
-            ),
-            SizedBox(
-              width: 190,
-              height: 48,
-              child: MJPrimaryButton(
-                text: 'Update Pricing',
-                loading: updating,
-                onPressed: onUpdatePricing,
-              ),
-            ),
-          ],
+        const SizedBox(height: 20),
+        _ModeSelector(
+          mode: mode,
+          onChanged: onModeChanged,
         ),
+        const SizedBox(height: 18),
+        if (isCarat)
+          Wrap(
+            spacing: 14,
+            runSpacing: 14,
+            crossAxisAlignment: WrapCrossAlignment.end,
+            children: [
+              _TextInput(
+                label: 'Solitaire Carat',
+                controller: solitaireCaratController,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (value) {
+                  final solitaire = double.tryParse(value.trim()) ?? 0;
+                  if (solitaire > 0) {
+                    diamondCaratController.text = '0';
+                  }
+                },
+              ),
+              _TextInput(
+                label: 'Diamond Carat',
+                controller: diamondCaratController,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+              ),
+              SizedBox(
+                width: 190,
+                height: 48,
+                child: MJPrimaryButton(
+                  text: 'Update Pricing',
+                  loading: updating,
+                  onPressed: onUpdatePricing,
+                ),
+              ),
+            ],
+          )
+        else
+          Wrap(
+            spacing: 14,
+            runSpacing: 14,
+            crossAxisAlignment: WrapCrossAlignment.end,
+            children: [
+              _TextInput(
+                label: 'Your Budget (INR)',
+                controller: budgetController,
+                hintText: 'e.g. 200000',
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: false),
+              ),
+              SizedBox(
+                width: 190,
+                height: 48,
+                child: MJPrimaryButton(
+                  text: 'Find Diamond',
+                  loading: updating,
+                  onPressed: onFindDiamond,
+                ),
+              ),
+            ],
+          ),
         const SizedBox(height: 24),
         Container(
           padding: const EdgeInsets.all(16),
@@ -629,7 +673,9 @@ class _CustomizeSection extends StatelessWidget {
               _DropdownBox(
                 label: 'Clarity',
                 width: 120,
-                value: filters.clarityDropdown.contains(clarity) ? clarity : 'All',
+                value: filters.clarityDropdown.contains(clarity)
+                    ? clarity
+                    : 'All',
                 items: filters.clarityDropdown,
                 onChanged: (value) => onFilterChanged(
                   shape: shape,
@@ -652,17 +698,81 @@ class _CustomizeSection extends StatelessWidget {
   }
 }
 
+class _ModeSelector extends StatelessWidget {
+  final String mode;
+  final ValueChanged<String> onChanged;
+
+  const _ModeSelector({
+    required this.mode,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    Widget item({
+      required String value,
+      required String label,
+    }) {
+      final selected = mode == value;
+
+      return Expanded(
+        child: InkWell(
+          onTap: () => onChanged(value),
+          child: Container(
+            height: 44,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: selected ? const Color(0xFF173E78) : Colors.white,
+              border: Border.all(color: const Color(0xFF173E78)),
+              borderRadius: BorderRadius.horizontal(
+                left: value == 'carat'
+                    ? const Radius.circular(8)
+                    : Radius.zero,
+                right: value == 'budget'
+                    ? const Radius.circular(8)
+                    : Radius.zero,
+              ),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                color: selected ? Colors.white : const Color(0xFF173E78),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return SizedBox(
+      width: 292,
+      child: Row(
+        children: [
+          item(value: 'carat', label: 'Carat Based'),
+          item(value: 'budget', label: 'Budget Based'),
+        ],
+      ),
+    );
+  }
+}
+
+
 class _TextInput extends StatelessWidget {
   final String label;
   final TextEditingController controller;
   final bool readOnly;
+  final String? hintText;
   final TextInputType? keyboardType;
+  final ValueChanged<String>? onChanged;
 
   const _TextInput({
     required this.label,
     required this.controller,
     this.readOnly = false,
+    this.hintText,
     this.keyboardType,
+    this.onChanged,
   });
 
   @override
@@ -678,7 +788,9 @@ class _TextInput extends StatelessWidget {
             controller: controller,
             readOnly: readOnly,
             keyboardType: keyboardType,
+            onChanged: onChanged,
             decoration: _inputDecoration().copyWith(
+              hintText: hintText,
               fillColor: readOnly ? Colors.grey.shade100 : Colors.white,
             ),
           ),
@@ -766,14 +878,34 @@ InputDecoration _inputDecoration() {
   );
 }
 
+
 class _ComparisonTable extends StatelessWidget {
   final PricingTable table;
+  final bool hideLastColumn;
 
-  const _ComparisonTable({required this.table});
+  const _ComparisonTable({
+    required this.table,
+    required this.hideLastColumn,
+  });
 
   @override
   Widget build(BuildContext context) {
     final header = table.header;
+    final showLastColumn = !hideLastColumn && header.showCol4;
+    final minWidth = MediaQuery.of(context).size.width - 52;
+
+    final columnWidths = showLastColumn
+        ? const <int, TableColumnWidth>{
+            0: FlexColumnWidth(1.2),
+            1: FlexColumnWidth(2),
+            2: FlexColumnWidth(2),
+            3: FlexColumnWidth(1.6),
+          }
+        : const <int, TableColumnWidth>{
+            0: FlexColumnWidth(1.2),
+            1: FlexColumnWidth(2),
+            2: FlexColumnWidth(2),
+          };
 
     return Container(
       decoration: BoxDecoration(
@@ -801,28 +933,22 @@ class _ComparisonTable extends StatelessWidget {
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: ConstrainedBox(
-  constraints: BoxConstraints(
-    minWidth: MediaQuery.of(context).size.width - 52,
-  ),
+                constraints: BoxConstraints(minWidth: minWidth),
                 child: Table(
                   border: TableBorder.all(color: AppColors.border),
-                  columnWidths: const {
-                    0: FixedColumnWidth(150),
-                    1: FixedColumnWidth(340),
-                    2: FixedColumnWidth(340),
-                    3: FixedColumnWidth(290),
-                  },
+                  columnWidths: columnWidths,
                   children: [
                     TableRow(
                       children: [
                         _TableCell(header.colDetail, bold: true),
                         _TableCell(header.colLg, bold: true, center: true),
                         _TableCell(header.colNat, bold: true, center: true),
-                        _TableCell(
-                          header.col4,
-                          bold: true,
-                          center: true,
-                        ),
+                        if (showLastColumn)
+                          _TableCell(
+                            header.col4,
+                            bold: true,
+                            center: true,
+                          ),
                       ],
                     ),
                     ...table.rows.map(
@@ -848,20 +974,12 @@ class _ComparisonTable extends StatelessWidget {
                             boldAmount: row.type == 'solitaire' ||
                                 row.type == 'diamond',
                           ),
-                           _TableCell(
-                             row.type != 'solitaire'
-                                ? '—'
-                                : row.col4Display,
-                            bold: row.col4Display.isNotEmpty,
-                            center: true,
-                          ),
-                          // _TableCell(
-                          //   row.col4Display.isEmpty && row.type == 'total'
-                          //       ? '—'
-                          //       : row.col4Display,
-                          //   bold: row.col4Display.isNotEmpty,
-                          //   center: true,
-                          // ),
+                          if (showLastColumn)
+                            _TableCell(
+                              row.col4Display.isEmpty ? '—' : row.col4Display,
+                              bold: row.col4Display.isNotEmpty,
+                              center: true,
+                            ),
                         ],
                       ),
                     ),
