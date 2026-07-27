@@ -30,7 +30,6 @@ class _SoliShiftLgScreenState extends State<SoliShiftLgScreen> {
   final TextEditingController _budgetController = TextEditingController();
 
   final GlobalKey _customizeSectionKey = GlobalKey();
-  bool _isDiamondReadOnly = false;
   
 
   @override
@@ -110,8 +109,6 @@ class _SoliShiftLgScreenState extends State<SoliShiftLgScreen> {
                     _solitaireCaratController.text = stockInfo.solitaireWt;
                     _diamondCaratController.text = stockInfo.diamondWt;
                     _budgetController.clear();
-                    _isDiamondReadOnly =
-                        (double.tryParse(stockInfo.solitaireWt) ?? 0) > 0;
                   }
                 },
                 builder: (context, state) {
@@ -200,13 +197,6 @@ class _SoliShiftLgScreenState extends State<SoliShiftLgScreen> {
                                         _diamondCaratController,
                                     budgetController: _budgetController,
                                     updating: state.pricingUpdating,
-                                    diamondReadOnly: _isDiamondReadOnly,
-                                    onSolitaireChanged: (_) {
-                                      // Intentionally do nothing.
-                                      // Diamond editability depends only on the
-                                      // original API solitaire value for the
-                                      // current stock search.
-                                    },
                                     onModeChanged: (mode) {
                                       context.read<SoliShiftLgBloc>().add(
                                             SoliShiftLgModeChanged(mode),
@@ -533,8 +523,6 @@ class _CustomizeSection extends StatelessWidget {
   final TextEditingController diamondCaratController;
   final TextEditingController budgetController;
   final bool updating;
-  final bool diamondReadOnly;
-  final ValueChanged<String> onSolitaireChanged;
   final ValueChanged<String> onModeChanged;
   final void Function({
     required String shape,
@@ -555,8 +543,6 @@ class _CustomizeSection extends StatelessWidget {
     required this.diamondCaratController,
     required this.budgetController,
     required this.updating,
-    required this.diamondReadOnly,
-    required this.onSolitaireChanged,
     required this.onModeChanged,
     required this.onFilterChanged,
     required this.onReset,
@@ -583,35 +569,43 @@ class _CustomizeSection extends StatelessWidget {
         ),
         const SizedBox(height: 18),
         if (isCarat)
-          Wrap(
-            spacing: 14,
-            runSpacing: 14,
-            crossAxisAlignment: WrapCrossAlignment.end,
-            children: [
-              _TextInput(
-                label: 'Solitaire Carat',
-                controller: solitaireCaratController,
-                onChanged: onSolitaireChanged,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-              ),
-              _TextInput(
-                label: 'Diamond Carat',
-                controller: diamondCaratController,
-                readOnly: diamondReadOnly,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-              ),
-              SizedBox(
-                width: 190,
-                height: 48,
-                child: MJPrimaryButton(
-                  text: 'Update Pricing',
-                  loading: updating,
-                  onPressed: onUpdatePricing,
-                ),
-              ),
-            ],
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: solitaireCaratController,
+            builder: (context, solitaireValue, _) {
+              final solitaireCarat =
+                  double.tryParse(solitaireValue.text.trim()) ?? 0;
+              final diamondReadOnly = solitaireCarat > 0;
+
+              return Wrap(
+                spacing: 14,
+                runSpacing: 14,
+                crossAxisAlignment: WrapCrossAlignment.end,
+                children: [
+                  _TextInput(
+                    label: 'Solitaire Carat',
+                    controller: solitaireCaratController,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                  ),
+                  _TextInput(
+                    label: 'Diamond Carat',
+                    controller: diamondCaratController,
+                    readOnly: diamondReadOnly,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                  ),
+                  SizedBox(
+                    width: 190,
+                    height: 48,
+                    child: MJPrimaryButton(
+                      text: 'Update Pricing',
+                      loading: updating,
+                      onPressed: onUpdatePricing,
+                    ),
+                  ),
+                ],
+              );
+            },
           )
         else
           Wrap(
@@ -977,7 +971,9 @@ class _ComparisonTable extends StatelessWidget {
                                 row.type == 'diamond',
                           ),
                           _TableCell(
-                            row.natCell,
+                            hideLastColumn && row.type == 'total'
+                                ? '—'
+                                : row.natCell,
                             center: true,
                             bold: row.type == 'total',
                             boldAmount: row.type == 'solitaire' ||

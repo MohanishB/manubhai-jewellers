@@ -31,7 +31,7 @@ class ProjectSelectScreen extends StatelessWidget {
         onTap: () => context.go('/solitaire/step1'),
       ),
       _ProjectTileVm(
-        title: 'Solishift - LG',
+        title: 'Soliswitch',
         subtitle: '',
         onTap: () => context.go('/solishift-lg'),
       ),

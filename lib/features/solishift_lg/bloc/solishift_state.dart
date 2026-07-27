@@ -5,8 +5,18 @@ class SoliShiftLgState extends Equatable {
   final bool loading;
   final bool pricingUpdating;
   final String? error;
+
+  /// Data currently displayed on screen.
   final SoliShiftLgData? data;
+
+  /// Last successful carat-based result.
+  final SoliShiftLgData? caratData;
+
+  /// Last successful budget-based result.
+  final SoliShiftLgData? budgetData;
+
   final bool showCustomize;
+  final String mode;
   final String shape;
   final String colour;
   final String clarity;
@@ -16,7 +26,10 @@ class SoliShiftLgState extends Equatable {
     this.pricingUpdating = false,
     this.error,
     this.data,
+    this.caratData,
+    this.budgetData,
     this.showCustomize = false,
+    this.mode = 'carat',
     this.shape = 'All',
     this.colour = 'All',
     this.clarity = 'All',
@@ -28,7 +41,11 @@ class SoliShiftLgState extends Equatable {
     String? error,
     bool clearError = false,
     SoliShiftLgData? data,
+    SoliShiftLgData? caratData,
+    SoliShiftLgData? budgetData,
+    bool clearBudgetData = false,
     bool? showCustomize,
+    String? mode,
     String? shape,
     String? colour,
     String? clarity,
@@ -38,7 +55,10 @@ class SoliShiftLgState extends Equatable {
       pricingUpdating: pricingUpdating ?? this.pricingUpdating,
       error: clearError ? null : error ?? this.error,
       data: data ?? this.data,
+      caratData: caratData ?? this.caratData,
+      budgetData: clearBudgetData ? null : budgetData ?? this.budgetData,
       showCustomize: showCustomize ?? this.showCustomize,
+      mode: mode ?? this.mode,
       shape: shape ?? this.shape,
       colour: colour ?? this.colour,
       clarity: clarity ?? this.clarity,
@@ -47,10 +67,12 @@ class SoliShiftLgState extends Equatable {
 
   List<PricingTable> get filteredTables {
     final tables = data?.pricingTables ?? const <PricingTable>[];
+
     return tables.where((table) {
       final shapeOk = shape == 'All' || table.shape == shape;
       final colourOk = colour == 'All' || table.colour == colour;
       final clarityOk = clarity == 'All' || table.clarity == clarity;
+
       return table.visible && shapeOk && colourOk && clarityOk;
     }).toList();
   }
@@ -61,7 +83,10 @@ class SoliShiftLgState extends Equatable {
         pricingUpdating,
         error,
         data,
+        caratData,
+        budgetData,
         showCustomize,
+        mode,
         shape,
         colour,
         clarity,

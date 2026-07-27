@@ -17,34 +17,62 @@ class SoliShiftLgResponse {
       errorMsg: json['error_msg']?.toString() ?? '',
       successCode: int.tryParse(json['success_code'].toString()) ?? 0,
       data: SoliShiftLgData.fromJson(
-        Map<String, dynamic>.from(json['lg_data'] ?? {}),
+        Map<String, dynamic>.from(json['lg_data'] ?? const {}),
       ),
     );
   }
 }
 
 class SoliShiftLgData {
+  final String mode;
   final StockInfo stockInfo;
   final FilterOptions filters;
+  final List<Map<String, dynamic>> solitaireEntries;
+  final List<Map<String, dynamic>> diamondEntries;
   final List<PricingTable> pricingTables;
+  final RawEntries rawEntries;
 
   const SoliShiftLgData({
+    this.mode = 'carat',
     required this.stockInfo,
     required this.filters,
+    this.solitaireEntries = const [],
+    this.diamondEntries = const [],
     required this.pricingTables,
+    required this.rawEntries,
   });
 
   factory SoliShiftLgData.fromJson(Map<String, dynamic> json) {
     return SoliShiftLgData(
+      mode: json['mode']?.toString() ?? 'carat',
       stockInfo: StockInfo.fromJson(
-        Map<String, dynamic>.from(json['stock_info'] ?? {}),
+        Map<String, dynamic>.from(json['stock_info'] ?? const {}),
       ),
       filters: FilterOptions.fromJson(
-        Map<String, dynamic>.from(json['filters'] ?? {}),
+        Map<String, dynamic>.from(json['filters'] ?? const {}),
       ),
-      pricingTables: (json['pricing_tables'] as List<dynamic>? ?? [])
+      solitaireEntries: _mapList(json['solitaire_entries']),
+      diamondEntries: _mapList(json['diamond_entries']),
+      pricingTables: (json['pricing_tables'] as List<dynamic>? ?? const [])
           .map((e) => PricingTable.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
+      rawEntries: RawEntries.fromJson(
+        Map<String, dynamic>.from(json['raw_entries'] ?? const {}),
+      ),
+    );
+  }
+
+  /// Update APIs don't return stock_info, filters or raw_entries.
+  /// Preserve them from the initial search response.
+  SoliShiftLgData mergeUpdate(SoliShiftLgData update) {
+    return SoliShiftLgData(
+      mode: update.mode,
+      stockInfo: update.stockInfo.stockCode.isEmpty ? stockInfo : update.stockInfo,
+      filters: update.filters.isEmpty ? filters : update.filters,
+      solitaireEntries: update.solitaireEntries,
+      diamondEntries: update.diamondEntries,
+      pricingTables: update.pricingTables,
+      rawEntries: rawEntries,
     );
   }
 }
@@ -58,12 +86,12 @@ class StockInfo {
   final String diamondWt;
 
   const StockInfo({
-    required this.stockCode,
-    required this.stockImage,
-    required this.grossWt,
-    required this.netWt,
-    required this.solitaireWt,
-    required this.diamondWt,
+    this.stockCode = '',
+    this.stockImage = '',
+    this.grossWt = '',
+    this.netWt = '',
+    this.solitaireWt = '',
+    this.diamondWt = '',
   });
 
   factory StockInfo.fromJson(Map<String, dynamic> json) {
@@ -84,14 +112,16 @@ class FilterOptions {
   final List<String> clarities;
 
   const FilterOptions({
-    required this.shapes,
-    required this.colours,
-    required this.clarities,
+    this.shapes = const [],
+    this.colours = const [],
+    this.clarities = const [],
   });
+
+  bool get isEmpty => shapes.isEmpty && colours.isEmpty && clarities.isEmpty;
 
   factory FilterOptions.fromJson(Map<String, dynamic> json) {
     List<String> parseList(dynamic value) {
-      return (value as List<dynamic>? ?? [])
+      return (value as List<dynamic>? ?? const [])
           .map((e) => e.toString())
           .where((e) => e.trim().isNotEmpty)
           .toList();
@@ -107,6 +137,32 @@ class FilterOptions {
   List<String> get shapeDropdown => ['All', ...shapes];
   List<String> get colourDropdown => ['All', ...colours];
   List<String> get clarityDropdown => ['All', ...clarities];
+}
+
+class RawEntries {
+  final num labourAmount;
+  final num metalAmount;
+  final num solitaireWt;
+  final List<Map<String, dynamic>> solitaireDetails;
+  final List<Map<String, dynamic>> diamondDetails;
+
+  const RawEntries({
+    this.labourAmount = 0,
+    this.metalAmount = 0,
+    this.solitaireWt = 0,
+    this.solitaireDetails = const [],
+    this.diamondDetails = const [],
+  });
+
+  factory RawEntries.fromJson(Map<String, dynamic> json) {
+    return RawEntries(
+      labourAmount: _asNum(json['labour_amount']),
+      metalAmount: _asNum(json['metal_amount']),
+      solitaireWt: _asNum(json['solitaire_wt']),
+      solitaireDetails: _mapList(json['solitaire_details']),
+      diamondDetails: _mapList(json['diamond_details']),
+    );
+  }
 }
 
 class PricingTable {
@@ -136,9 +192,9 @@ class PricingTable {
       clarity: json['clarity']?.toString() ?? '',
       visible: json['visible'] != false,
       header: PricingHeader.fromJson(
-        Map<String, dynamic>.from(json['header'] ?? {}),
+        Map<String, dynamic>.from(json['header'] ?? const {}),
       ),
-      rows: (json['rows'] as List<dynamic>? ?? [])
+      rows: (json['rows'] as List<dynamic>? ?? const [])
           .map((e) => PricingRow.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
     );
@@ -151,6 +207,7 @@ class PricingHeader {
   final String colLg;
   final String colNat;
   final String col4;
+  final bool showCol4;
 
   const PricingHeader({
     required this.title,
@@ -158,6 +215,7 @@ class PricingHeader {
     required this.colLg,
     required this.colNat,
     required this.col4,
+    required this.showCol4,
   });
 
   factory PricingHeader.fromJson(Map<String, dynamic> json) {
@@ -167,6 +225,7 @@ class PricingHeader {
       colLg: json['col_lg']?.toString() ?? 'LG',
       colNat: json['col_nat']?.toString() ?? 'Real Diamond',
       col4: json['col4']?.toString() ?? 'Same price as LG with Real Diamond',
+      showCol4: json['show_col4'] != false,
     );
   }
 }
@@ -176,7 +235,9 @@ class PricingRow {
   final String label;
   final String subLabel;
   final String lgFormula;
+  final String lgDisplay;
   final String natFormula;
+  final String natDisplay;
   final String lgAmount;
   final String natAmount;
   final String col4Display;
@@ -186,7 +247,9 @@ class PricingRow {
     required this.label,
     required this.subLabel,
     required this.lgFormula,
+    required this.lgDisplay,
     required this.natFormula,
+    required this.natDisplay,
     required this.lgAmount,
     required this.natAmount,
     required this.col4Display,
@@ -197,8 +260,10 @@ class PricingRow {
       type: json['type']?.toString() ?? '',
       label: json['label']?.toString() ?? '',
       subLabel: json['sub_label']?.toString() ?? '',
-      lgFormula: json['lg_formula']?.toString() ?? '',
-      natFormula: json['nat_formula']?.toString() ?? '',
+      lgFormula: _formatFormula(json['lg_formula']),
+      lgDisplay: (json['lg_display']?.toString() ?? '').replaceAll('|', '\n'),
+      natFormula: _formatFormula(json['nat_formula']),
+      natDisplay: (json['nat_display']?.toString() ?? '').replaceAll('|', '\n'),
       lgAmount: _formatInr(json['lg_amount']),
       natAmount: _formatInr(json['nat_amount']),
       col4Display: _parseCol4(json['col4']),
@@ -212,19 +277,37 @@ class PricingRow {
     return lgAmount;
   }
 
+  String get lgBudgetCell {
+    final primary = lgCell;
+    if (lgDisplay.trim().isEmpty) return primary;
+    if (primary.trim().isEmpty) return lgDisplay;
+    return '$primary\n$lgDisplay';
+  }
+
   String get natCell {
-    if (type == 'solitaire' || type == 'diamond') {
-      return natFormula.isEmpty ? natAmount : '$natFormula = $natAmount';
-    }
-    return natAmount;
+    final primary = (type == 'solitaire' || type == 'diamond')
+        ? (natFormula.isEmpty ? natAmount : '$natFormula = $natAmount')
+        : natAmount;
+
+    if (natDisplay.trim().isEmpty) return primary;
+    if (primary.trim().isEmpty) return natDisplay;
+    return '$primary\n$natDisplay';
   }
 }
+
+List<Map<String, dynamic>> _mapList(dynamic value) {
+  return (value as List<dynamic>? ?? const [])
+      .whereType<Map>()
+      .map((e) => Map<String, dynamic>.from(e))
+      .toList();
+}
+
+num _asNum(dynamic value) => value is num ? value : num.tryParse('$value') ?? 0;
 
 String _parseCol4(dynamic value) {
   if (value == null) return '';
   if (value is Map) {
-    final display = value['display']?.toString() ?? '';
-    return display.replaceAll('|', '\n');
+    return (value['display']?.toString() ?? '').replaceAll('|', '\n');
   }
   return value.toString();
 }
@@ -233,7 +316,7 @@ String _numString(dynamic value) {
   if (value == null) return '';
   final number = double.tryParse(value.toString());
   if (number == null) return value.toString();
-  var text = number.toStringAsFixed(3);
+  var text = number.toStringAsFixed(4);
   text = text.replaceFirst(RegExp(r'0+$'), '');
   text = text.replaceFirst(RegExp(r'\.$'), '');
   return text;
@@ -241,31 +324,25 @@ String _numString(dynamic value) {
 
 String _formatInr(dynamic value) {
   if (value == null || value.toString().trim().isEmpty) return '';
-
   final number = num.tryParse(value.toString());
   if (number == null) return value.toString();
-
   final raw = number.round().toString();
-
   return 'INR ${raw.replaceAllMapped(
     RegExp(r'\B(?=(\d{3})+(?!\d))'),
-    (match) => ',',
+    (_) => ',',
   )}';
 }
 
-// String _formatInr(dynamic value) {
-//   if (value == null || value.toString().trim().isEmpty) return '';
-//   final number = num.tryParse(value.toString());
-//   if (number == null) return value.toString();
-
-//   final raw = number.round().toString();
-//   final buffer = StringBuffer();
-//   for (int i = 0; i < raw.length; i++) {
-//     final fromEnd = raw.length - i;
-//     buffer.write(raw[i]);
-//     if (fromEnd > 1 && fromEnd % 2 == 0 && i != raw.length - 1) {
-//       buffer.write(',');
-//     }
-//   }
-//   return 'INR ${buffer.toString()}';
-// }
+String _formatFormula(dynamic value) {
+  final text = value?.toString() ?? '';
+  return text.replaceAllMapped(
+    RegExp(r'(?<![\d.])(\d{4,})(?![\d.])'),
+    (match) {
+      final raw = match.group(1)!;
+      return raw.replaceAllMapped(
+        RegExp(r'\B(?=(\d{3})+(?!\d))'),
+        (_) => ',',
+      );
+    },
+  );
+}
