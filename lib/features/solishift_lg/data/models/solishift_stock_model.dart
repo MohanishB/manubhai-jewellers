@@ -235,7 +235,9 @@ class PricingRow {
   final String label;
   final String subLabel;
   final String lgFormula;
+  final String lgDisplay;
   final String natFormula;
+  final String natDisplay;
   final String lgAmount;
   final String natAmount;
   final String col4Display;
@@ -245,7 +247,9 @@ class PricingRow {
     required this.label,
     required this.subLabel,
     required this.lgFormula,
+    required this.lgDisplay,
     required this.natFormula,
+    required this.natDisplay,
     required this.lgAmount,
     required this.natAmount,
     required this.col4Display,
@@ -257,7 +261,9 @@ class PricingRow {
       label: json['label']?.toString() ?? '',
       subLabel: json['sub_label']?.toString() ?? '',
       lgFormula: _formatFormula(json['lg_formula']),
+      lgDisplay: (json['lg_display']?.toString() ?? '').replaceAll('|', '\n'),
       natFormula: _formatFormula(json['nat_formula']),
+      natDisplay: (json['nat_display']?.toString() ?? '').replaceAll('|', '\n'),
       lgAmount: _formatInr(json['lg_amount']),
       natAmount: _formatInr(json['nat_amount']),
       col4Display: _parseCol4(json['col4']),
@@ -271,11 +277,21 @@ class PricingRow {
     return lgAmount;
   }
 
+  String get lgBudgetCell {
+    final primary = lgCell;
+    if (lgDisplay.trim().isEmpty) return primary;
+    if (primary.trim().isEmpty) return lgDisplay;
+    return '$primary\n$lgDisplay';
+  }
+
   String get natCell {
-    if (type == 'solitaire' || type == 'diamond') {
-      return natFormula.isEmpty ? natAmount : '$natFormula = $natAmount';
-    }
-    return natAmount;
+    final primary = (type == 'solitaire' || type == 'diamond')
+        ? (natFormula.isEmpty ? natAmount : '$natFormula = $natAmount')
+        : natAmount;
+
+    if (natDisplay.trim().isEmpty) return primary;
+    if (primary.trim().isEmpty) return natDisplay;
+    return '$primary\n$natDisplay';
   }
 }
 
