@@ -195,6 +195,9 @@ class MJHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final homeAction =
+        onHomePressed ?? () => context.go('/project');
+
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -215,15 +218,19 @@ class MJHeader extends StatelessWidget {
               ),
             ),
 
-          // MJ Logo
-          Container(
-            width: 38,
-            height: 38,
-            alignment: Alignment.center,
-            child: Image.asset(
-              'assets/images/mj_logo_blue_text.png',
-              height: 28,
-              fit: BoxFit.contain,
+          // MJ Logo — same action as the Home button on project screens
+          InkWell(
+            onTap: showHome ? homeAction : null,
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              width: 38,
+              height: 38,
+              alignment: Alignment.center,
+              child: Image.asset(
+                'assets/images/mj_logo_blue_text.png',
+                height: 28,
+                fit: BoxFit.contain,
+              ),
             ),
           ),
 
@@ -232,7 +239,7 @@ class MJHeader extends StatelessWidget {
           // ✅ Optional Home button
           if (showHome)
             _actionButton(
-              onTap: onHomePressed ?? () => context.go('/project'),
+              onTap: homeAction,
               icon: Icons.home_outlined,
               label: 'Home',
             ),

@@ -209,6 +209,26 @@ class MJSearchField extends StatefulWidget {
 class _MJSearchFieldState extends State<MJSearchField> {
   Timer? _debounce;
 
+  void _handleControllerChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller?.addListener(_handleControllerChanged);
+  }
+
+  @override
+  void didUpdateWidget(covariant MJSearchField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller?.removeListener(_handleControllerChanged);
+      widget.controller?.addListener(_handleControllerChanged);
+    }
+  }
+
   void _onChangedHandler(String value) {
     if (mounted) setState(() {});
 
@@ -229,6 +249,7 @@ class _MJSearchFieldState extends State<MJSearchField> {
 
   @override
   void dispose() {
+    widget.controller?.removeListener(_handleControllerChanged);
     _debounce?.cancel();
     super.dispose();
   }

@@ -12,6 +12,7 @@ import 'package:manubhaimlt/core/widgets/mj_primary_button.dart';
 import 'package:manubhaimlt/core/widgets/mj_scaffold.dart';
 import 'package:manubhaimlt/core/widgets/mj_search_field.dart';
 import 'package:manubhaimlt/features/mlt/products/bloc/CSE/productFilters/product_filter_bloc.dart';
+import 'package:manubhaimlt/features/mlt/products/bloc/CSE/productFilters/product_filter_event.dart';
 import 'package:manubhaimlt/features/mlt/products/bloc/CSE/productFilters/product_filter_state.dart';
 import 'package:manubhaimlt/features/mlt/products/data/models/CSE_models/product_filter_sort_by_model.dart';
 import 'package:manubhaimlt/features/mlt/products/bloc/CSE/productSearch/product_search_bloc.dart';
@@ -60,6 +61,11 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
     super.initState();
     ScreenProtector.preventScreenshotOn();
     _gridScrollCtrl.addListener(_onGridScroll);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _syncStockCodeFromState(context.read<ProductSearchBloc>().state);
+    });
   }
 
   @override
@@ -313,6 +319,41 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
   }
 
 
+  void _syncStockCodeFromState(ProductSearchState state) {
+    if (state is! ProductSearchLoaded) return;
+
+    final stockCode =
+        (state.appliedFilters['__single_stock_code'] ?? '').toString().trim();
+
+    if (stockCode.isEmpty || _stockSearchCtrl.text == stockCode) return;
+
+    _stockSearchCtrl.value = TextEditingValue(
+      text: stockCode,
+      selection: TextSelection.collapsed(offset: stockCode.length),
+    );
+  }
+
+  void _startAgain() {
+    FocusManager.instance.primaryFocus?.unfocus();
+
+    _resetLocalUiState();
+    context.read<ProductFilterBloc>().add(
+          const SetSelectedFilters(<String, dynamic>{}),
+        );
+    context.read<ProductSearchBloc>().add(const ResetProductSearch());
+  }
+
+  Widget _startAgainButton({required bool isTablet}) {
+    return SizedBox(
+      width: isTablet ? 135 : 115,
+      height: 42,
+      child: MJPrimaryButton(
+        text: 'Start Again',
+        onPressed: _startAgain,
+      ),
+    );
+  }
+
   Future<void> _handleSingleProductSearch() async {
      FocusManager.instance.primaryFocus?.unfocus();
     final stockCode = _stockSearchCtrl.text.trim();
@@ -354,35 +395,72 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
         );
   }
 
-  Widget _singleProductSearchSection({required bool isTablet}) {
-  return Row(
-    children: [
-      SizedBox(
-        width: 225,
-        child: MJSearchField(
-          controller: _stockSearchCtrl,
-          hintText: 'Enter stock code',
-          variant: MJSearchFieldVariant.flat,
-          height: 44,
-          showPrefixIcon: true,
-          debounceMs: 0,
-          onChanged: (_) {},
-          onClear: () {
-            _stockSearchCtrl.clear();
-            setState(() {});
-          },
-        ),
-      ),
-      const SizedBox(width: 10),
-      SizedBox(
-        width: isTablet ? 135 : 105,
-        height: 42,
-        child: MJPrimaryButton(
-          text: 'Search',
-          onPressed: _handleSingleProductSearch,
-        ),
-      ),
-    ],
+  Widget _singleProductSearchSection({
+  required bool isTablet,
+  required bool showStartAgain,
+}) {
+  return LayoutBuilder(
+    builder: (context, constraints) {
+      final isCompact = constraints.maxWidth < 600;
+
+      return Row(
+        children: [
+          if (isCompact)
+            Expanded(
+              child: MJSearchField(
+                controller: _stockSearchCtrl,
+                hintText: 'Enter stock code',
+                variant: MJSearchFieldVariant.flat,
+                height: 44,
+                showPrefixIcon: true,
+                debounceMs: 0,
+                onChanged: (_) {},
+                onClear: () {
+                  _stockSearchCtrl.clear();
+                  setState(() {});
+                },
+              ),
+            )
+          else
+            SizedBox(
+              width: 225,
+              child: MJSearchField(
+                controller: _stockSearchCtrl,
+                hintText: 'Enter stock code',
+                variant: MJSearchFieldVariant.flat,
+                height: 44,
+                showPrefixIcon: true,
+                debounceMs: 0,
+                onChanged: (_) {},
+                onClear: () {
+                  _stockSearchCtrl.clear();
+                  setState(() {});
+                },
+              ),
+            ),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: isCompact ? 88 : (isTablet ? 135 : 105),
+            height: 42,
+            child: MJPrimaryButton(
+              text: 'Search',
+              onPressed: _handleSingleProductSearch,
+            ),
+          ),
+          if (showStartAgain) ...[
+            const SizedBox(width: 10),
+            SizedBox(
+              width: isCompact ? 100 : (isTablet ? 135 : 115),
+              height: 42,
+              child: MJPrimaryButton(
+                text: 'Start Again',
+                onPressed: _startAgain,
+              ),
+            ),
+          ],
+        ],
+      );
+    },
   );
 }
 
@@ -450,6 +528,7 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
 
               // ✅ keep dropdown in sync if appliedFilters has sort_by
               if (state is ProductSearchLoaded) {
+                _syncStockCodeFromState(state);
                 final appliedSort = state.appliedFilters['sort_by']?.toString();
                 if ((appliedSort ?? '').isNotEmpty && appliedSort != _sortByValue) {
                   setState(() => _sortByValue = appliedSort);
@@ -567,6 +646,9 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
                           filters: appliedFilters,
                           sortOptions: sortOptions,
                           pfState: pfState,
+                          showStartAgain:
+                              hasDashboardFilters && state is ProductSearchLoaded,
+                          isTablet: isTablet,
                         )
                       else
                         _topAreaPhone(
@@ -574,11 +656,17 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
                           filters: appliedFilters,
                           sortOptions: sortOptions,
                           pfState: pfState,
+                          showStartAgain:
+                              hasDashboardFilters && state is ProductSearchLoaded,
+                          isTablet: isTablet,
                         ),
 
                       if (!hasDashboardFilters) ...[
                         const SizedBox(height: 10),
-                        _singleProductSearchSection(isTablet: isTablet),
+                        _singleProductSearchSection(
+                          isTablet: isTablet,
+                          showStartAgain: state is ProductSearchLoaded,
+                        ),
                       ],
 
                       const SizedBox(height: 10),
@@ -759,6 +847,8 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
     required Map<String, dynamic> filters,
     required List<ProductSortByModel> sortOptions,
     required ProductFilterState pfState,
+    required bool showStartAgain,
+    required bool isTablet,
   }) {
     final chipData = _buildChipData(filters: filters, sortOptions: sortOptions);
 
@@ -770,6 +860,10 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
         _gridDropdownInline(),
         const SizedBox(width: 12),
         _sortDropdownInline(enabled: hasProducts, sortOptions: sortOptions),
+        if (showStartAgain) ...[
+          const SizedBox(width: 12),
+          _startAgainButton(isTablet: isTablet),
+        ],
       ],
     );
 
@@ -778,7 +872,10 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
         const menuW = 24.0;
         const gap1 = 12.0;
         const gap2 = 12.0;
-        const dropdownW = 80.0 + 12.0 + 175.0;
+        final dropdownW = 80.0 +
+            12.0 +
+            175.0 +
+            (showStartAgain ? 12.0 + (isTablet ? 135.0 : 115.0) : 0.0);
 
         final chipAreaMaxW = hasProducts
             ? (c.maxWidth - menuW - gap1 - gap2 - dropdownW)
@@ -869,6 +966,8 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
     required Map<String, dynamic> filters,
     required List<ProductSortByModel> sortOptions,
     required ProductFilterState pfState,
+    required bool showStartAgain,
+    required bool isTablet,
   }) {
     final chipData = _buildChipData(filters: filters, sortOptions: sortOptions);
     final showClearAll = hasProducts && _hasClearableNonMandatoryFilters(filters, pfState);
@@ -907,6 +1006,10 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
               _gridDropdownInline(),
               const SizedBox(width: 12),
               _sortDropdownInline(enabled: true, sortOptions: sortOptions),
+              if (showStartAgain) ...[
+                const SizedBox(width: 10),
+                _startAgainButton(isTablet: isTablet),
+              ],
             ],
           ),
       ],
