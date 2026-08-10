@@ -580,14 +580,20 @@ class _BucketSimilarProductsScreenState
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () => _openImageViewer(product),
-                child: CachedNetworkImage(
-                  imageUrl: product.image,
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) => const Center(
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                child: ClipRect(
+                  child: Transform.scale(
+                    scale: product.zoomImage ? product.zoomLevel : 1.0,
+                    alignment: Alignment.center,
+                    child: CachedNetworkImage(
+                      imageUrl: product.image,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => const Center(
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      errorWidget: (context, url, error) =>
+                          const Center(child: Icon(Icons.broken_image)),
+                    ),
                   ),
-                  errorWidget: (context, url, error) =>
-                      const Center(child: Icon(Icons.broken_image)),
                 ),
               ),
             ),

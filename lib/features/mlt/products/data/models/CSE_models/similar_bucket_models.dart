@@ -12,6 +12,20 @@ double _toDouble(dynamic value) {
   return double.tryParse(value.toString().replaceAll(',', '')) ?? 0;
 }
 
+bool _isZoomEnabled(dynamic value) {
+  return _cleanText(value).toLowerCase() == 'yes';
+}
+
+double _resolveZoomLevel({
+  required dynamic zoomImageValue,
+  required dynamic zoomLevelValue,
+}) {
+  if (!_isZoomEnabled(zoomImageValue)) return 1.0;
+
+  final parsed = double.tryParse(_cleanText(zoomLevelValue));
+  return parsed != null && parsed > 0 ? parsed : 1.0;
+}
+
 int _toInt(dynamic value) {
   if (value == null) return 0;
   return int.tryParse(value.toString()) ?? 0;
@@ -227,6 +241,8 @@ class BucketSimilarPiece extends Equatable {
   final String metalWeight;
   final String sellingPrice;
   final String itemStatus;
+  final bool zoomImage;
+  final double zoomLevel;
   final Map<String, String> attributes;
   final Map<String, dynamic> raw;
 
@@ -237,6 +253,8 @@ class BucketSimilarPiece extends Equatable {
     required this.metalWeight,
     required this.sellingPrice,
     required this.itemStatus,
+    required this.zoomImage,
+    required this.zoomLevel,
     required this.attributes,
     required this.raw,
   });
@@ -262,6 +280,11 @@ class BucketSimilarPiece extends Equatable {
       metalWeight: _cleanText(json['metal_weight']),
       sellingPrice: _cleanText(json['selling_price']),
       itemStatus: _cleanText(json['item_status']),
+      zoomImage: _isZoomEnabled(json['zoom_image']),
+      zoomLevel: _resolveZoomLevel(
+        zoomImageValue: json['zoom_image'],
+        zoomLevelValue: json['zoom_level'],
+      ),
       attributes: attributes,
       raw: Map<String, dynamic>.from(json),
     );
@@ -275,6 +298,8 @@ class BucketSimilarPiece extends Equatable {
       metalWeight: metalWeight,
       sellingPrice: sellingPrice,
       itemStatus: itemStatus,
+      zoomImage: zoomImage,
+      zoomLevel: zoomLevel,
       attributes: attributes,
     );
   }
@@ -287,6 +312,8 @@ class BucketSimilarPiece extends Equatable {
         metalWeight,
         sellingPrice,
         itemStatus,
+        zoomImage,
+        zoomLevel,
         attributes,
         raw,
       ];
@@ -302,6 +329,8 @@ class BucketSimilarResultItem extends Equatable {
   final double combinedNetWt;
   final double combinedGrossWt;
   final double combinedPrice;
+  final bool zoomImage;
+  final double zoomLevel;
   final List<BucketSimilarPiece> pieces;
   final Map<String, String> attributes;
   final Map<String, dynamic> raw;
@@ -316,6 +345,8 @@ class BucketSimilarResultItem extends Equatable {
     required this.combinedNetWt,
     required this.combinedGrossWt,
     required this.combinedPrice,
+    required this.zoomImage,
+    required this.zoomLevel,
     required this.pieces,
     required this.attributes,
     required this.raw,
@@ -349,6 +380,16 @@ class BucketSimilarResultItem extends Equatable {
       combinedNetWt: _toDouble(json['combined_net_wt']),
       combinedGrossWt: _toDouble(json['combined_gross_wt']),
       combinedPrice: _toDouble(json['combined_price']),
+      zoomImage: _isZoomEnabled(
+        json['zoom_image'] ??
+            (pieces.isNotEmpty ? pieces.first.raw['zoom_image'] : null),
+      ),
+      zoomLevel: _resolveZoomLevel(
+        zoomImageValue: json['zoom_image'] ??
+            (pieces.isNotEmpty ? pieces.first.raw['zoom_image'] : null),
+        zoomLevelValue: json['zoom_level'] ??
+            (pieces.isNotEmpty ? pieces.first.raw['zoom_level'] : null),
+      ),
       pieces: pieces,
       attributes: attributes,
       raw: Map<String, dynamic>.from(json),
@@ -365,6 +406,8 @@ class BucketSimilarResultItem extends Equatable {
       price: combinedPrice.toStringAsFixed(0),
       weight: _formatNumber(combinedGrossWt),
       displayPrice: '₹${combinedPrice.toStringAsFixed(0)}',
+      zoomImage: zoomImage,
+      zoomLevel: zoomLevel,
       imagePopupData: [],
       piecePopupData: popupPieces,
     );
@@ -509,6 +552,8 @@ class BucketSimilarResultItem extends Equatable {
         combinedNetWt,
         combinedGrossWt,
         combinedPrice,
+        zoomImage,
+        zoomLevel,
         pieces,
         attributes,
         raw,
