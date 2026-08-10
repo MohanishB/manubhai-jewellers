@@ -14,22 +14,7 @@ class BucketSimilarProductsRepository {
 
   Uri _uri(String endpoint) => Uri.parse('$baseUrl$endpoint');
 
-  // Future<SimilarLookupResponse> lookup({required String stockCode}) async {
-  //   final response = await _client.post(
-  //     _uri('lookup.php'),
-  //     headers: const {'Content-Type': 'application/json'},
-  //     body: jsonEncode({'stock_code': stockCode}),
-  //   );
-
-  //   if (response.statusCode != 200) {
-  //     throw Exception('Lookup failed: ${response.statusCode}');
-  //   }
-
-  //   final data = jsonDecode(response.body) as Map<String, dynamic>;
-  //   if (data['ok'] == true) return SimilarLookupResponse.fromJson(data);
-
-  //   throw Exception(data['message'] ?? data['error'] ?? 'Lookup failed');
-  // }
+  
 
   Future<SimilarLookupResponse> lookup({required String stockCode}) async {
   final request = {
@@ -61,28 +46,7 @@ class BucketSimilarProductsRepository {
   throw Exception(data['message'] ?? data['error'] ?? 'Bucket not found for stock code: $stockCode');
 }
 
-  // Future<BucketSimilarResultsResponse> results({
-  //   required String stockCode,
-  //   required int bucketId,
-  // }) async {
-  //   final response = await _client.post(
-  //     _uri('results.php'),
-  //     headers: const {'Content-Type': 'application/json'},
-  //     body: jsonEncode({
-  //       'stock_code': stockCode,
-  //       'bucket_id': bucketId,
-  //     }),
-  //   );
-
-  //   if (response.statusCode != 200) {
-  //     throw Exception('Results failed: ${response.statusCode}');
-  //   }
-
-  //   final data = jsonDecode(response.body) as Map<String, dynamic>;
-  //   if (data['ok'] == true) return BucketSimilarResultsResponse.fromJson(data);
-
-  //   throw Exception(data['message'] ?? data['error'] ?? 'Results failed');
-  // }
+  
 
   Future<BucketSimilarResultsResponse> results({
   required String stockCode,

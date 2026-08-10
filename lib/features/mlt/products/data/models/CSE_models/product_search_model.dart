@@ -8,6 +8,13 @@ class ProductModel {
   final String weight;
   final String displayPrice;
 
+  /// Whether the API requests the product thumbnail to be zoomed.
+  final bool zoomImage;
+
+  /// Scale supplied by the API when [zoomImage] is true.
+  /// Defaults to 1.0 when zooming is disabled or the value is invalid.
+  final double zoomLevel;
+
   /// Existing popup label/value data used by older screens.
   final List<ImagePopupData> imagePopupData;
 
@@ -22,6 +29,8 @@ class ProductModel {
     required this.price,
     required this.weight,
     required this.displayPrice,
+    this.zoomImage = false,
+    this.zoomLevel = 1.0,
     required this.imagePopupData,
     this.piecePopupData = const [],
   });
@@ -34,6 +43,8 @@ class ProductModel {
       price: '${json['selling_price'] ?? ''}',
       weight: '${json['weight'] ?? ''}',
       displayPrice: '${json['display_price'] ?? ''}',
+      zoomImage: '${json['zoom_image'] ?? ''}'.trim().toLowerCase() == 'yes',
+      zoomLevel: _resolvedZoomLevel(json),
       imagePopupData: (json['image_popup_data'] as List<dynamic>? ?? [])
           .whereType<Map>()
           .map((e) => ImagePopupData.fromJson(Map<String, dynamic>.from(e)))
@@ -43,6 +54,15 @@ class ProductModel {
           .map((e) => ProductPiecePopupData.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
     );
+  }
+
+  static double _resolvedZoomLevel(Map<String, dynamic> json) {
+    final shouldZoom =
+        '${json['zoom_image'] ?? ''}'.trim().toLowerCase() == 'yes';
+    if (!shouldZoom) return 1.0;
+
+    final parsed = double.tryParse('${json['zoom_level'] ?? ''}'.trim());
+    return parsed != null && parsed > 0 ? parsed : 1.0;
   }
 }
 
@@ -70,6 +90,8 @@ class ProductPiecePopupData {
   final String metalWeight;
   final String sellingPrice;
   final String itemStatus;
+  final bool zoomImage;
+  final double zoomLevel;
   final Map<String, String> attributes;
 
   const ProductPiecePopupData({
@@ -79,6 +101,8 @@ class ProductPiecePopupData {
     required this.metalWeight,
     required this.sellingPrice,
     required this.itemStatus,
+    this.zoomImage = false,
+    this.zoomLevel = 1.0,
     this.attributes = const {},
   });
 
@@ -103,8 +127,19 @@ class ProductPiecePopupData {
       metalWeight: '${json['metal_weight'] ?? ''}',
       sellingPrice: '${json['selling_price'] ?? ''}',
       itemStatus: '${json['item_status'] ?? ''}',
+      zoomImage: '${json['zoom_image'] ?? ''}'.trim().toLowerCase() == 'yes',
+      zoomLevel: _resolvedZoomLevel(json),
       attributes: attributes,
     );
+  }
+
+  static double _resolvedZoomLevel(Map<String, dynamic> json) {
+    final shouldZoom =
+        '${json['zoom_image'] ?? ''}'.trim().toLowerCase() == 'yes';
+    if (!shouldZoom) return 1.0;
+
+    final parsed = double.tryParse('${json['zoom_level'] ?? ''}'.trim());
+    return parsed != null && parsed > 0 ? parsed : 1.0;
   }
 
   List<ImagePopupData> get displayRows {
