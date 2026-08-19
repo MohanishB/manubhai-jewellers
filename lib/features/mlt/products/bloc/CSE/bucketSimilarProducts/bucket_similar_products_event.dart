@@ -10,24 +10,52 @@ abstract class BucketSimilarProductsEvent extends Equatable {
 
 class LookupBucketSimilarProducts extends BucketSimilarProductsEvent {
   final String stockCode;
+  final String cseId;
+  final String cseMltBranch;
+  final List<String> cseMltLocation;
 
-  const LookupBucketSimilarProducts({required this.stockCode});
+  const LookupBucketSimilarProducts({
+    required this.stockCode,
+    this.cseId = '',
+    this.cseMltBranch = '',
+    this.cseMltLocation = const [],
+  });
 
   @override
-  List<Object?> get props => [stockCode];
+  List<Object?> get props => [
+        stockCode,
+        cseId,
+        cseMltBranch,
+        cseMltLocation,
+      ];
 }
 
 class LoadBucketSimilarProducts extends BucketSimilarProductsEvent {
   final String stockCode;
   final int bucketId;
+  final String preferredBranch;
+  final String cseId;
+  final String cseMltBranch;
+  final List<String> cseMltLocation;
 
   const LoadBucketSimilarProducts({
     required this.stockCode,
     required this.bucketId,
+    this.preferredBranch = '',
+    this.cseId = '',
+    this.cseMltBranch = '',
+    this.cseMltLocation = const [],
   });
 
   @override
-  List<Object?> get props => [stockCode, bucketId];
+  List<Object?> get props => [
+        stockCode,
+        bucketId,
+        preferredBranch,
+        cseId,
+        cseMltBranch,
+        cseMltLocation,
+      ];
 }
 
 class SelectSeeAlsoBucketSimilarProducts extends BucketSimilarProductsEvent {

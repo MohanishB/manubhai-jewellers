@@ -27,7 +27,12 @@ class BucketSimilarProductsBloc
   ) async {
     emit(BucketSimilarProductsLoading());
     try {
-      final lookup = await repository.lookup(stockCode: event.stockCode);
+      final lookup = await repository.lookup(
+        stockCode: event.stockCode,
+        cseId: event.cseId,
+        cseMltBranch: event.cseMltBranch,
+        cseMltLocation: event.cseMltLocation,
+      );
       emit(BucketSimilarProductsLookupLoaded(lookup));
     } catch (e) {
       emit(BucketSimilarProductsError(ApiErrorHandler.message(e)));
@@ -46,11 +51,19 @@ class BucketSimilarProductsBloc
           ? current.lookup
           : current is BucketSimilarProductsLoaded
               ? current.lookup
-              : await repository.lookup(stockCode: event.stockCode);
+              : await repository.lookup(
+                  stockCode: event.stockCode,
+                  cseId: event.cseId,
+                  cseMltBranch: event.cseMltBranch,
+                  cseMltLocation: event.cseMltLocation,
+                );
 
       final result = await repository.results(
         stockCode: event.stockCode,
         bucketId: event.bucketId,
+        cseId: event.cseId,
+        cseMltBranch: event.cseMltBranch,
+        cseMltLocation: event.cseMltLocation,
       );
 
       final normalBuckets = lookup.buckets;
@@ -76,6 +89,7 @@ class BucketSimilarProductsBloc
           items: result.items,
           filterOptions: result.filterOptions,
           filters: const {},
+          preferredBranch: event.preferredBranch,
         ),
       );
     } catch (e) {
@@ -112,6 +126,7 @@ class BucketSimilarProductsBloc
             ? seeAlso.filterOptions
             : current.result.filterOptions,
         filters: const {},
+        preferredBranch: current.preferredBranch,
       ),
     );
   }
@@ -127,7 +142,9 @@ class BucketSimilarProductsBloc
         .where((item) => item.matchesFilters(event.filters))
         .toList();
 
-    final allProducts = filteredItems.map((e) => e.toProductModel()).toList();
+    final sortedItems =
+        _sortItemsByPreferredBranch(filteredItems, current.preferredBranch);
+    final allProducts = sortedItems.map((e) => e.toProductModel()).toList();
     emit(
       current.copyWith(
         allProducts: allProducts,
@@ -164,10 +181,15 @@ class BucketSimilarProductsBloc
     required List<BucketSimilarResultItem> items,
     required List<SimilarFilterOption> filterOptions,
     required Map<String, Set<String>> filters,
+    String preferredBranch = '',
   }) {
     final filteredItems =
         filters.isEmpty ? items : items.where((e) => e.matchesFilters(filters)).toList();
-    final allProducts = filteredItems.map((e) => e.toProductModel()).toList();
+    final sortedItems = _sortItemsByPreferredBranch(
+      List<BucketSimilarResultItem>.from(filteredItems),
+      preferredBranch,
+    );
+    final allProducts = sortedItems.map((e) => e.toProductModel()).toList();
 
     return BucketSimilarProductsLoaded(
       lookup: lookup,
@@ -180,6 +202,7 @@ class BucketSimilarProductsBloc
       products: allProducts.take(_defaultLoadCount).toList(),
       filterOptions: _filterOptionsForItems(filterOptions, items),
       appliedFilters: filters,
+      preferredBranch: preferredBranch.trim(),
       totalFound: allProducts.length,
       loadCount: _defaultLoadCount,
     );
@@ -189,23 +212,84 @@ class BucketSimilarProductsBloc
     List<SimilarFilterOption> options,
     List<BucketSimilarResultItem> items,
   ) {
-    return options.map((option) {
-      if (option.isNumeric) return option;
+    final resolved = options
+        .where((option) => option.column.trim().toLowerCase() != 'branch_org')
+        .map((option) {
+          if (option.isNumeric) return option;
 
-      // results.php sends discrete filter values in filter_options. Keep those
-      // values as-is so the drawer remains in API sequence and does not become
-      // empty when product cards expose only a subset of fields.
-      if (option.values.isNotEmpty) return option;
+          // results.php sends discrete filter values in filter_options. Keep
+          // those values as-is so existing filter behaviour remains unchanged.
+          if (option.values.isNotEmpty) return option;
 
-      final values = <String>{};
-      for (final item in items) {
-        values.addAll(item.valuesForColumn(option.column));
-      }
+          final values = <String>{};
+          for (final item in items) {
+            values.addAll(item.valuesForColumn(option.column));
+          }
 
-      return option.copyWithValues(values.toList());
-    }).where((option) {
-      return option.isNumeric || option.values.isNotEmpty;
-    }).toList()
+          return option.copyWithValues(values.toList());
+        })
+        .where((option) => option.isNumeric || option.values.isNotEmpty)
+        .toList()
       ..sort((a, b) => a.seq.compareTo(b.seq));
+
+    // branch_org is intentionally generated from the returned products instead
+    // of being hard-coded. This keeps the dropdown future-proof when branches
+    // are added on the API side.
+    final branches = <String>{};
+    for (final item in items) {
+      for (final branch in item.valuesForColumn('branch_org')) {
+        final value = branch.trim();
+        if (value.isNotEmpty) branches.add(value);
+      }
+    }
+
+    if (branches.isNotEmpty) {
+      final values = branches.toList()
+        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+
+      resolved.add(
+        SimilarFilterOption(
+          column: 'branch_org',
+          label: 'Branch',
+          kind: 'discrete',
+          seq: resolved.isEmpty
+              ? 1
+              : resolved.map((e) => e.seq).reduce((a, b) => a > b ? a : b) + 1,
+          values: values,
+        ),
+      );
+    }
+
+    return resolved;
   }
+
+  List<BucketSimilarResultItem> _sortItemsByPreferredBranch(
+    List<BucketSimilarResultItem> items,
+    String preferredBranch,
+  ) {
+    final priorityBranch = preferredBranch.trim().isNotEmpty
+        ? preferredBranch.trim().toLowerCase()
+        : 'borivali';
+
+    if (items.length < 2) return items;
+
+    final matching = <BucketSimilarResultItem>[];
+    final others = <BucketSimilarResultItem>[];
+
+    for (final item in items) {
+      final itemBranches = item
+          .valuesForColumn('branch_org')
+          .map((e) => e.trim().toLowerCase())
+          .where((e) => e.isNotEmpty);
+
+      if (itemBranches.contains(priorityBranch)) {
+        matching.add(item);
+      } else {
+        others.add(item);
+      }
+    }
+
+    return <BucketSimilarResultItem>[...matching, ...others];
+  }
+
 }

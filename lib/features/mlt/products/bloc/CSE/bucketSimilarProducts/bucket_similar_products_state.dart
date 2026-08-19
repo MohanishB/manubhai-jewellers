@@ -33,6 +33,7 @@ class BucketSimilarProductsLoaded extends BucketSimilarProductsState {
   final List<ProductModel> products;
   final List<SimilarFilterOption> filterOptions;
   final Map<String, Set<String>> appliedFilters;
+  final String preferredBranch;
   final int totalFound;
   final int loadCount;
   final int maxSafeCount;
@@ -48,6 +49,7 @@ class BucketSimilarProductsLoaded extends BucketSimilarProductsState {
     required this.products,
     required this.filterOptions,
     required this.appliedFilters,
+    this.preferredBranch = '',
     required this.totalFound,
     this.loadCount = 6,
     this.maxSafeCount = 6,
@@ -61,6 +63,7 @@ class BucketSimilarProductsLoaded extends BucketSimilarProductsState {
     List<ProductModel>? allProducts,
     List<ProductModel>? products,
     Map<String, Set<String>>? appliedFilters,
+    String? preferredBranch,
     int? totalFound,
   }) {
     return BucketSimilarProductsLoaded(
@@ -74,6 +77,7 @@ class BucketSimilarProductsLoaded extends BucketSimilarProductsState {
       products: products ?? this.products,
       filterOptions: filterOptions,
       appliedFilters: appliedFilters ?? this.appliedFilters,
+      preferredBranch: preferredBranch ?? this.preferredBranch,
       totalFound: totalFound ?? this.totalFound,
       loadCount: loadCount,
       maxSafeCount: maxSafeCount,
@@ -92,6 +96,7 @@ class BucketSimilarProductsLoaded extends BucketSimilarProductsState {
         products,
         filterOptions,
         appliedFilters,
+        preferredBranch,
         totalFound,
         loadCount,
         maxSafeCount,
