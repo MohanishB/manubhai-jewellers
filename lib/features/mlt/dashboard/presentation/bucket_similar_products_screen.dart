@@ -14,6 +14,8 @@ import 'package:manubhaimlt/features/auth/bloc/auth_state.dart';
 import 'package:manubhaimlt/features/mlt/products/bloc/CSE/bucketSimilarProducts/bucket_similar_products_bloc.dart';
 import 'package:manubhaimlt/features/mlt/products/bloc/CSE/bucketSimilarProducts/bucket_similar_products_event.dart';
 import 'package:manubhaimlt/features/mlt/products/bloc/CSE/bucketSimilarProducts/bucket_similar_products_state.dart';
+import 'package:manubhaimlt/features/mlt/products/bloc/CSE/productFilters/product_filter_bloc.dart';
+import 'package:manubhaimlt/features/mlt/products/bloc/CSE/productFilters/product_filter_state.dart';
 import 'package:manubhaimlt/features/mlt/products/bloc/CSE/requestSafe/request_safe_bloc.dart';
 import 'package:manubhaimlt/features/mlt/products/bloc/CSE/requestSafe/request_safe_event.dart';
 import 'package:manubhaimlt/features/mlt/products/bloc/CSE/requestSafe/request_safe_state.dart';
@@ -62,7 +64,12 @@ class _BucketSimilarProductsScreenState
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<BucketSimilarProductsBloc>().add(
-            LookupBucketSimilarProducts(stockCode: _activeStockCode),
+            LookupBucketSimilarProducts(
+              stockCode: _activeStockCode,
+              cseId: _cseId(),
+              cseMltBranch: _cseMltBranch(),
+              cseMltLocation: _cseMltLocation(),
+            ),
           );
     });
   }
@@ -86,6 +93,32 @@ class _BucketSimilarProductsScreenState
     }
   }
 
+  String _cseId() {
+    final filterState = context.read<ProductFilterBloc>().state;
+    if (filterState is ProductFilterLoaded) {
+      return filterState.cseId.trim();
+    }
+    return '';
+  }
+
+  String _cseMltBranch() {
+    final filterState = context.read<ProductFilterBloc>().state;
+    if (filterState is ProductFilterLoaded) {
+      return filterState.cseMltBranch.trim();
+    }
+    return '';
+  }
+
+  List<String> _cseMltLocation() {
+    final filterState = context.read<ProductFilterBloc>().state;
+    if (filterState is ProductFilterLoaded) {
+      return List<String>.from(filterState.cseMltLocation);
+    }
+    return const [];
+  }
+
+  String _preferredCseBranch() => _cseMltBranch();
+
   void _loadBucket(int bucketId) {
     setState(() {
       _selectedBucketId = bucketId;
@@ -97,6 +130,10 @@ class _BucketSimilarProductsScreenState
           LoadBucketSimilarProducts(
             stockCode: _activeStockCode,
             bucketId: bucketId,
+            preferredBranch: _preferredCseBranch(),
+            cseId: _cseId(),
+            cseMltBranch: _cseMltBranch(),
+            cseMltLocation: _cseMltLocation(),
           ),
         );
   }
@@ -277,7 +314,12 @@ class _BucketSimilarProductsScreenState
     });
 
     context.read<BucketSimilarProductsBloc>().add(
-          LookupBucketSimilarProducts(stockCode: stockCode),
+          LookupBucketSimilarProducts(
+            stockCode: stockCode,
+            cseId: _cseId(),
+            cseMltBranch: _cseMltBranch(),
+            cseMltLocation: _cseMltLocation(),
+          ),
         );
   }
 
@@ -1710,6 +1752,51 @@ class _BucketFilterSheetState extends State<_BucketFilterSheet> {
     }).toList();
   }
 
+  Widget _buildBranchDropdown(SimilarFilterOption option) {
+    final selectedValues = _selected[option.column];
+    final selectedValue =
+        selectedValues != null && selectedValues.isNotEmpty
+            ? selectedValues.first
+            : '';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: MJDropdownField<String>(
+        value: selectedValue,
+        hintText: 'Select Branch',
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 9,
+        ),
+        items: [
+          const DropdownMenuItem<String>(
+            value: '',
+            child: Text('All Branches'),
+          ),
+          ...option.values.map(
+            (value) => DropdownMenuItem<String>(
+              value: value,
+              child: Text(
+                value,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+        ],
+        onChanged: (value) {
+          setState(() {
+            final branch = value?.trim() ?? '';
+            if (branch.isEmpty) {
+              _selected.remove(option.column);
+            } else {
+              _selected[option.column] = {branch};
+            }
+          });
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final maxHeight = MediaQuery.of(context).size.height * 0.86;
@@ -1778,6 +1865,28 @@ class _BucketFilterSheetState extends State<_BucketFilterSheet> {
                           itemBuilder: (context, index) {
                             final option = widget.options[index];
                             final selectedCount = _selectedCount(option);
+
+                            if (option.column.trim().toLowerCase() ==
+                                'branch_org') {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Branch',
+                                      style: TextStyle(
+                                        color: AppColors.brand,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    _buildBranchDropdown(option),
+                                  ],
+                                ),
+                              );
+                            }
 
                             return Theme(
                               data: Theme.of(context).copyWith(

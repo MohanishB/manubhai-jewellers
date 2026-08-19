@@ -123,6 +123,9 @@ class ProductFilterBloc extends Bloc<ProductFilterEvent, ProductFilterState> {
         mainFilters: resp.filters,
         sortBy: resp.sortBy,
         selectedFilters: selected,
+        cseId: resp.cseId.isNotEmpty ? resp.cseId : event.cseId,
+        cseMltBranch: resp.cseMltBranch,
+        cseMltLocation: resp.cseMltLocation,
         subFiltersLoaded: false,
         subFiltersLoading: false,
       ));

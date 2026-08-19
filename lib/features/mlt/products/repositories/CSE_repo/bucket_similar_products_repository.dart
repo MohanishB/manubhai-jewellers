@@ -16,9 +16,17 @@ class BucketSimilarProductsRepository {
 
   
 
-  Future<SimilarLookupResponse> lookup({required String stockCode}) async {
+  Future<SimilarLookupResponse> lookup({
+    required String stockCode,
+    required String cseId,
+    required String cseMltBranch,
+    required List<String> cseMltLocation,
+  }) async {
   final request = {
     'stock_code': stockCode,
+    'cse_id': cseId,
+    'cse_mlt_branch': cseMltBranch,
+    'cse_mlt_location': cseMltLocation,
   };
 
   print('========== LOOKUP API ==========');
@@ -49,12 +57,18 @@ class BucketSimilarProductsRepository {
   
 
   Future<BucketSimilarResultsResponse> results({
-  required String stockCode,
-  required int bucketId,
-}) async {
+    required String stockCode,
+    required int bucketId,
+    required String cseId,
+    required String cseMltBranch,
+    required List<String> cseMltLocation,
+  }) async {
   final request = {
     'stock_code': stockCode,
     'bucket_id': bucketId,
+    'cse_id': cseId,
+    'cse_mlt_branch': cseMltBranch,
+    'cse_mlt_location': cseMltLocation,
   };
 
   print('========== RESULTS API ==========');

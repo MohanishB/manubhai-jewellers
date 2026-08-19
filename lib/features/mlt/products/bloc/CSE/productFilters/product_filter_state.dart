@@ -73,6 +73,9 @@ class ProductFilterLoaded extends ProductFilterState {
   final List<ProductFilterModel> mainFilters;
   final List<ProductSortByModel> sortBy;
   final Map<String, dynamic> selectedFilters;
+  final String cseId;
+  final String cseMltBranch;
+  final List<String> cseMltLocation;
 
   final bool subFiltersLoading;
   final bool subFiltersLoaded;
@@ -83,6 +86,9 @@ class ProductFilterLoaded extends ProductFilterState {
     this.mainFilters = const [],
     this.sortBy = const [],
     this.selectedFilters = const {},
+    this.cseId = '',
+    this.cseMltBranch = '',
+    this.cseMltLocation = const [],
     this.subFiltersLoading = false,
     this.subFiltersLoaded = false,
     this.subFilterError,
@@ -93,6 +99,9 @@ class ProductFilterLoaded extends ProductFilterState {
     List<ProductFilterModel>? mainFilters,
     List<ProductSortByModel>? sortBy,
     Map<String, dynamic>? selectedFilters,
+    String? cseId,
+    String? cseMltBranch,
+    List<String>? cseMltLocation,
     bool? subFiltersLoading,
     bool? subFiltersLoaded,
     String? subFilterError,
@@ -102,6 +111,9 @@ class ProductFilterLoaded extends ProductFilterState {
       mainFilters: mainFilters ?? this.mainFilters,
       sortBy: sortBy ?? this.sortBy,
       selectedFilters: selectedFilters ?? this.selectedFilters,
+      cseId: cseId ?? this.cseId,
+      cseMltBranch: cseMltBranch ?? this.cseMltBranch,
+      cseMltLocation: cseMltLocation ?? this.cseMltLocation,
       subFiltersLoading: subFiltersLoading ?? this.subFiltersLoading,
       subFiltersLoaded: subFiltersLoaded ?? this.subFiltersLoaded,
       subFilterError: subFilterError,
@@ -114,6 +126,9 @@ class ProductFilterLoaded extends ProductFilterState {
         mainFilters,
         sortBy,
         selectedFilters,
+        cseId,
+        cseMltBranch,
+        cseMltLocation,
         subFiltersLoading,
         subFiltersLoaded,
         subFilterError,

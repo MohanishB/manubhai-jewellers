@@ -692,14 +692,21 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
                               );
                             } else if (state is ProductSearchLoaded) {
                               if (state.products.isEmpty) {
-                                return const Center(
-                                  child: Text(
-                                    "No products found",
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.black54,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                return Center(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Text(
+                                        "No products found",
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color: Colors.black54,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      _startAgainButton(isTablet: isTablet),
+                                    ],
                                   ),
                                 );
                               }
