@@ -8,6 +8,7 @@ import 'package:manubhaimlt/core/widgets/mj_dropdown_field.dart';
 import 'package:manubhaimlt/core/widgets/mj_primary_button.dart';
 import 'package:manubhaimlt/core/widgets/mj_scaffold.dart';
 import 'package:manubhaimlt/core/widgets/mj_text_field.dart';
+import 'package:manubhaimlt/core/widgets/mj_image_zoom_control.dart';
 import 'package:manubhaimlt/features/auth/bloc/auth_bloc.dart';
 import 'package:manubhaimlt/features/auth/bloc/auth_event.dart';
 import 'package:manubhaimlt/features/auth/bloc/auth_state.dart';
@@ -53,6 +54,12 @@ class _BucketSimilarProductsScreenState
   String? _lookupPopupShownForStockCode;
   late final TextEditingController _stockSearchCtrl;
   late String _activeStockCode;
+
+  // Manual image zoom mode. When disabled, the existing API-driven
+  // zoom_image / zoom_level behaviour remains unchanged.
+  bool _applyZoomToAll = false;
+  MJImageZoomOrigin _zoomOrigin = MJImageZoomOrigin.center;
+  final Set<String> _manualZoomDisabledIds = <String>{};
 
   @override
   void initState() {
@@ -311,6 +318,7 @@ class _BucketSimilarProductsScreenState
       _pendingScrollToFirstNewIndex = null;
       _lastLoadedCount = 0;
       _lookupPopupShownForStockCode = null;
+      _manualZoomDisabledIds.clear();
     });
 
     context.read<BucketSimilarProductsBloc>().add(
@@ -321,6 +329,76 @@ class _BucketSimilarProductsScreenState
             cseMltLocation: _cseMltLocation(),
           ),
         );
+  }
+
+  String _productZoomKey(ProductModel product) {
+    final stockId = product.stockId.trim();
+    if (stockId.isNotEmpty) return stockId;
+    return product.stockCode.trim();
+  }
+
+  bool _isManualZoomEnabledFor(ProductModel product) {
+    return _applyZoomToAll &&
+        !_manualZoomDisabledIds.contains(_productZoomKey(product));
+  }
+
+  double _gridImageScale(ProductModel product) {
+    if (_applyZoomToAll) {
+      if (!_isManualZoomEnabledFor(product)) {
+        return 1.0;
+      }
+
+      // Manual mode ignores zoom_image. Use the API zoom_level when it is
+      // greater than 1; otherwise fall back to a visible 2x zoom.
+      final apiZoomLevel = product.zoomLevel;
+      return apiZoomLevel > 1.0 ? apiZoomLevel : 2.0;
+    }
+
+    // Existing/default API-driven behaviour remains unchanged.
+    return product.zoomImage ? product.zoomLevel : 1.0;
+  }
+
+  Alignment _gridImageAlignment(ProductModel product) {
+    if (_applyZoomToAll && _isManualZoomEnabledFor(product)) {
+      return _zoomOrigin.alignment;
+    }
+    return Alignment.center;
+  }
+
+  Future<void> _openZoomPreference() async {
+    final result = await showMJImageZoomPreferenceDialog(
+      context,
+      initialEnabled: _applyZoomToAll,
+      initialOrigin: _zoomOrigin,
+    );
+
+    if (!mounted || result == null) return;
+
+    setState(() {
+      _applyZoomToAll = result.enabled;
+      _zoomOrigin = result.origin;
+      _manualZoomDisabledIds.clear();
+    });
+  }
+
+  Widget _zoomPreferenceButton() {
+    return SizedBox(
+      width: 32,
+      height: 32,
+      child: IconButton(
+        tooltip: _applyZoomToAll
+            ? 'Image zoom: On (${_zoomOrigin.label})'
+            : 'Image zoom settings',
+        padding: EdgeInsets.zero,
+        splashRadius: 18,
+        onPressed: _openZoomPreference,
+        icon: Icon(
+          Icons.center_focus_strong,
+          size: 22,
+          color: _applyZoomToAll ? _mjPrimaryBlue : Colors.black87,
+        ),
+      ),
+    );
   }
 
   Widget _stockSearchBar({bool compact = false}) {
@@ -474,6 +552,8 @@ class _BucketSimilarProductsScreenState
           onTap: () => context.pop(),
           child: const Icon(Icons.arrow_back, size: 24),
         ),
+        const SizedBox(width: 10),
+        _zoomPreferenceButton(),
         const SizedBox(width: 12),
         _stockSearchBar(),
         const Spacer(),
@@ -499,6 +579,8 @@ class _BucketSimilarProductsScreenState
             onTap: () => context.pop(),
             child: const Icon(Icons.arrow_back, size: 24),
           ),
+          const SizedBox(width: 10),
+          _zoomPreferenceButton(),
           const SizedBox(width: 12),
           Expanded(child: _stockSearchBar(compact: true)),
         ],
@@ -624,8 +706,8 @@ class _BucketSimilarProductsScreenState
                 onTap: () => _openImageViewer(product),
                 child: ClipRect(
                   child: Transform.scale(
-                    scale: product.zoomImage ? product.zoomLevel : 1.0,
-                    alignment: Alignment.center,
+                    scale: _gridImageScale(product),
+                    alignment: _gridImageAlignment(product),
                     child: CachedNetworkImage(
                       imageUrl: product.image,
                       fit: BoxFit.cover,
@@ -668,6 +750,37 @@ class _BucketSimilarProductsScreenState
                 ),
               ),
             ),
+            if (_applyZoomToAll)
+              Positioned(
+                top: 4,
+                right: 4,
+                child: Container(
+                  height: 30,
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.48),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Transform.scale(
+                    scale: 0.72,
+                    child: Switch(
+                      value: _isManualZoomEnabledFor(product),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      onChanged: (enabled) {
+                        final key = _productZoomKey(product);
+                        setState(() {
+                          if (enabled) {
+                            _manualZoomDisabledIds.remove(key);
+                          } else {
+                            _manualZoomDisabledIds.add(key);
+                          }
+                        });
+                      },
+                    ),
+                  ),
+                ),
+              ),
+
             Positioned(
               right: 6,
               bottom: 6,
@@ -1212,6 +1325,8 @@ class _BucketSimilarProductsScreenState
                               onTap: () => context.pop(),
                               child: const Icon(Icons.arrow_back, size: 24),
                             ),
+                            const SizedBox(width: 10),
+                            _zoomPreferenceButton(),
                             const SizedBox(width: 12),
                             Expanded(child: _stockSearchBar(compact: true)),
                           ],

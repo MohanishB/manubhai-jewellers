@@ -20,8 +20,6 @@ double _resolveZoomLevel({
   required dynamic zoomImageValue,
   required dynamic zoomLevelValue,
 }) {
-  if (!_isZoomEnabled(zoomImageValue)) return 1.0;
-
   final parsed = double.tryParse(_cleanText(zoomLevelValue));
   return parsed != null && parsed > 0 ? parsed : 1.0;
 }
@@ -358,6 +356,23 @@ class BucketSimilarResultItem extends Equatable {
         .map((e) => BucketSimilarPiece.fromJson(Map<String, dynamic>.from(e)))
         .toList();
 
+    // results.php can expose zoom_level either on the result row or on its
+    // individual pieces. Keep the strongest valid API value so manual
+    // "zoom all" mode always has the actual scale available.
+    final rowZoomLevel = _resolveZoomLevel(
+      zoomImageValue: json['zoom_image'],
+      zoomLevelValue: json['zoom_level'],
+    );
+    final pieceZoomLevels = pieces
+        .map((piece) => piece.zoomLevel)
+        .where((level) => level > 1.0)
+        .toList();
+    final effectiveZoomLevel = rowZoomLevel > 1.0
+        ? rowZoomLevel
+        : (pieceZoomLevels.isNotEmpty
+            ? pieceZoomLevels.reduce((a, b) => a > b ? a : b)
+            : 1.0);
+
     final attributes = <String, String>{};
     final attributesJson = json['attributes'];
     if (attributesJson is Map) {
@@ -384,12 +399,7 @@ class BucketSimilarResultItem extends Equatable {
         json['zoom_image'] ??
             (pieces.isNotEmpty ? pieces.first.raw['zoom_image'] : null),
       ),
-      zoomLevel: _resolveZoomLevel(
-        zoomImageValue: json['zoom_image'] ??
-            (pieces.isNotEmpty ? pieces.first.raw['zoom_image'] : null),
-        zoomLevelValue: json['zoom_level'] ??
-            (pieces.isNotEmpty ? pieces.first.raw['zoom_level'] : null),
-      ),
+      zoomLevel: effectiveZoomLevel,
       pieces: pieces,
       attributes: attributes,
       raw: Map<String, dynamic>.from(json),
