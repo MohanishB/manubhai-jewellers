@@ -11,6 +11,7 @@ import 'package:manubhaimlt/core/widgets/mj_dropdown_field.dart';
 import 'package:manubhaimlt/core/widgets/mj_primary_button.dart';
 import 'package:manubhaimlt/core/widgets/mj_scaffold.dart';
 import 'package:manubhaimlt/core/widgets/mj_search_field.dart';
+import 'package:manubhaimlt/core/widgets/mj_image_zoom_control.dart';
 import 'package:manubhaimlt/features/mlt/products/bloc/CSE/productFilters/product_filter_bloc.dart';
 import 'package:manubhaimlt/features/mlt/products/bloc/CSE/productFilters/product_filter_event.dart';
 import 'package:manubhaimlt/features/mlt/products/bloc/CSE/productFilters/product_filter_state.dart';
@@ -55,6 +56,10 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
 
   // ✅ remember appliedFilters signature so we can reset scroll on new filter results
   String _lastAppliedFiltersKey = '';
+
+  bool _applyZoomToAll = false;
+  MJImageZoomOrigin _zoomOrigin = MJImageZoomOrigin.center;
+  final Set<String> _manualZoomDisabledIds = {};
 
   @override
   void initState() {
@@ -129,6 +134,9 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
       _gridWidth = 0;
       _lastAppliedFiltersKey = '';
       _stockSearchCtrl.clear();
+      _applyZoomToAll = false;
+      _zoomOrigin = MJImageZoomOrigin.center;
+      _manualZoomDisabledIds.clear();
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -350,6 +358,77 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
       child: MJPrimaryButton(
         text: 'Start Again',
         onPressed: _startAgain,
+      ),
+    );
+  }
+
+  String _productZoomKey(ProductModel product) {
+    final stockId = product.stockId.trim();
+    if (stockId.isNotEmpty) return stockId;
+    return product.stockCode.trim();
+  }
+
+  bool _isManualZoomEnabledFor(ProductModel product) {
+    return _applyZoomToAll &&
+        !_manualZoomDisabledIds.contains(_productZoomKey(product));
+  }
+
+  double _gridImageScale(ProductModel product) {
+    if (_applyZoomToAll) {
+      if (!_isManualZoomEnabledFor(product)) {
+        return 1.0;
+      }
+
+      // Manual "Apply zoom to all" mode intentionally ignores zoom_image.
+      // Use the API zoom_level when it is useful; otherwise use 2x so the
+      // manual zoom always has a visible effect.
+      final apiZoomLevel = product.zoomLevel;
+      return apiZoomLevel > 1.0 ? apiZoomLevel : 2.0;
+    }
+
+    // Default/API-driven behaviour remains unchanged.
+    return product.zoomImage ? product.zoomLevel : 1.0;
+  }
+
+  Alignment _gridImageAlignment(ProductModel product) {
+    if (_applyZoomToAll && _isManualZoomEnabledFor(product)) {
+      return _zoomOrigin.alignment;
+    }
+    return Alignment.center;
+  }
+
+  Future<void> _openZoomPreference() async {
+    final result = await showMJImageZoomPreferenceDialog(
+      context,
+      initialEnabled: _applyZoomToAll,
+      initialOrigin: _zoomOrigin,
+    );
+
+    if (!mounted || result == null) return;
+
+    setState(() {
+      _applyZoomToAll = result.enabled;
+      _zoomOrigin = result.origin;
+      _manualZoomDisabledIds.clear();
+    });
+  }
+
+  Widget _zoomPreferenceButton() {
+    return SizedBox(
+      width: 32,
+      height: 32,
+      child: IconButton(
+        tooltip: _applyZoomToAll
+            ? 'Image zoom: On (${_zoomOrigin.label})'
+            : 'Image zoom settings',
+        padding: EdgeInsets.zero,
+        splashRadius: 18,
+        onPressed: _openZoomPreference,
+        icon: Icon(
+          Icons.center_focus_strong,
+          size: 22,
+          color: _applyZoomToAll ? _mjPrimaryBlue : Colors.black87,
+        ),
       ),
     );
   }
@@ -876,7 +955,7 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
 
     return LayoutBuilder(
       builder: (context, c) {
-        const menuW = 24.0;
+        const menuW = 68.0;
         const gap1 = 12.0;
         const gap2 = 12.0;
         final dropdownW = 80.0 +
@@ -905,9 +984,9 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Column(
-                  mainAxisSize: MainAxisSize.max,
-                  mainAxisAlignment: MainAxisAlignment.start,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Builder(
                       builder: (context) => GestureDetector(
@@ -915,6 +994,8 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
                         child: const Icon(Icons.menu, size: 24),
                       ),
                     ),
+                    const SizedBox(width: 12),
+                    _zoomPreferenceButton(),
                   ],
                 ),
                 const SizedBox(width: 12),
@@ -950,6 +1031,8 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
                 child: const Icon(Icons.menu, size: 24),
               ),
             ),
+            const SizedBox(width: 12),
+            _zoomPreferenceButton(),
             const SizedBox(width: 12),
             Expanded(
               child: Wrap(
@@ -996,6 +1079,8 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
                 child: const Icon(Icons.menu, size: 24),
               ),
             ),
+            const SizedBox(width: 12),
+            _zoomPreferenceButton(),
             const SizedBox(width: 12),
             Expanded(
               child: SingleChildScrollView(
@@ -1591,8 +1676,8 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
                 onTap: () => _openImageViewer(product),
                 child: ClipRect(
                   child: Transform.scale(
-                    scale: product.zoomImage ? product.zoomLevel : 1.0,
-                    alignment: Alignment.center,
+                    scale: _gridImageScale(product),
+                    alignment: _gridImageAlignment(product),
                     child: CachedNetworkImage(
                       imageUrl: product.image,
                       fit: BoxFit.cover,
@@ -1663,6 +1748,37 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
                 ),
               ),
             ),
+
+            if (_applyZoomToAll)
+              Positioned(
+                top: 4,
+                right: 4,
+                child: Container(
+                  height: 30,
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.48),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Transform.scale(
+                    scale: 0.72,
+                    child: Switch(
+                      value: _isManualZoomEnabledFor(product),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      onChanged: (enabled) {
+                        final key = _productZoomKey(product);
+                        setState(() {
+                          if (enabled) {
+                            _manualZoomDisabledIds.remove(key);
+                          } else {
+                            _manualZoomDisabledIds.add(key);
+                          }
+                        });
+                      },
+                    ),
+                  ),
+                ),
+              ),
 
             /// Checkbox - untouched
             Positioned(

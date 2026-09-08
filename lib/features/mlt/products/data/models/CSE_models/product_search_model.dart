@@ -57,10 +57,6 @@ class ProductModel {
   }
 
   static double _resolvedZoomLevel(Map<String, dynamic> json) {
-    final shouldZoom =
-        '${json['zoom_image'] ?? ''}'.trim().toLowerCase() == 'yes';
-    if (!shouldZoom) return 1.0;
-
     final parsed = double.tryParse('${json['zoom_level'] ?? ''}'.trim());
     return parsed != null && parsed > 0 ? parsed : 1.0;
   }
@@ -134,10 +130,6 @@ class ProductPiecePopupData {
   }
 
   static double _resolvedZoomLevel(Map<String, dynamic> json) {
-    final shouldZoom =
-        '${json['zoom_image'] ?? ''}'.trim().toLowerCase() == 'yes';
-    if (!shouldZoom) return 1.0;
-
     final parsed = double.tryParse('${json['zoom_level'] ?? ''}'.trim());
     return parsed != null && parsed > 0 ? parsed : 1.0;
   }
