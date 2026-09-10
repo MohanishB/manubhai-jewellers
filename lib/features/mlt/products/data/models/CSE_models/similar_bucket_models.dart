@@ -329,6 +329,7 @@ class BucketSimilarResultItem extends Equatable {
   final double combinedPrice;
   final bool zoomImage;
   final double zoomLevel;
+  final FreezedProductStatus freezedProduct;
   final List<BucketSimilarPiece> pieces;
   final Map<String, String> attributes;
   final Map<String, dynamic> raw;
@@ -345,6 +346,7 @@ class BucketSimilarResultItem extends Equatable {
     required this.combinedPrice,
     required this.zoomImage,
     required this.zoomLevel,
+    required this.freezedProduct,
     required this.pieces,
     required this.attributes,
     required this.raw,
@@ -400,9 +402,34 @@ class BucketSimilarResultItem extends Equatable {
             (pieces.isNotEmpty ? pieces.first.raw['zoom_image'] : null),
       ),
       zoomLevel: effectiveZoomLevel,
+      freezedProduct: FreezedProductStatus.fromJson(
+        json.containsKey('freezed_product')
+            ? json['freezed_product']
+            : (pieces.isNotEmpty ? pieces.first.raw['freezed_product'] : null),
+      ),
       pieces: pieces,
       attributes: attributes,
       raw: Map<String, dynamic>.from(json),
+    );
+  }
+
+  BucketSimilarResultItem copyWith({FreezedProductStatus? freezedProduct}) {
+    return BucketSimilarResultItem(
+      setNo: setNo,
+      thumbCode: thumbCode,
+      thumbUrl: thumbUrl,
+      isSet: isSet,
+      pieceCount: pieceCount,
+      groupOfPieces: groupOfPieces,
+      combinedNetWt: combinedNetWt,
+      combinedGrossWt: combinedGrossWt,
+      combinedPrice: combinedPrice,
+      zoomImage: zoomImage,
+      zoomLevel: zoomLevel,
+      freezedProduct: freezedProduct ?? this.freezedProduct,
+      pieces: pieces,
+      attributes: attributes,
+      raw: raw,
     );
   }
 
@@ -418,6 +445,7 @@ class BucketSimilarResultItem extends Equatable {
       displayPrice: '₹${combinedPrice.toStringAsFixed(0)}',
       zoomImage: zoomImage,
       zoomLevel: zoomLevel,
+      freezedProduct: freezedProduct,
       imagePopupData: [],
       piecePopupData: popupPieces,
     );
@@ -564,6 +592,7 @@ class BucketSimilarResultItem extends Equatable {
         combinedPrice,
         zoomImage,
         zoomLevel,
+        freezedProduct,
         pieces,
         attributes,
         raw,

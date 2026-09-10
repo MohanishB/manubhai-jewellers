@@ -1,5 +1,43 @@
 // features/products/data/models/product_search_model.dart
 
+class FreezedProductStatus {
+  final bool freezed;
+  final bool byOwn;
+  final bool byOther;
+  final String cseName;
+
+  const FreezedProductStatus({
+    this.freezed = false,
+    this.byOwn = false,
+    this.byOther = false,
+    this.cseName = '',
+  });
+
+  factory FreezedProductStatus.fromJson(dynamic json) {
+    if (json is! Map) return const FreezedProductStatus();
+
+    bool flag(dynamic value) {
+      if (value is bool) return value;
+      if (value is num) return value == 1;
+      final text = '${value ?? ''}'.trim().toLowerCase();
+      return text == '1' || text == 'true' || text == 'yes';
+    }
+
+    final freezed = flag(json['freezed']);
+    final byOwn = freezed && flag(json['by_own']);
+    // `by_own` is the authoritative ownership flag. If it is 1, never let
+    // `by_other` override the UI even if a malformed payload contains both.
+    final byOther = freezed && !byOwn && flag(json['by_other']);
+
+    return FreezedProductStatus(
+      freezed: freezed,
+      byOwn: byOwn,
+      byOther: byOther,
+      cseName: '${json['cse_name'] ?? ''}'.trim(),
+    );
+  }
+}
+
 class ProductModel {
   final String stockId;
   final String stockCode;
@@ -7,6 +45,7 @@ class ProductModel {
   final String price;
   final String weight;
   final String displayPrice;
+  final FreezedProductStatus freezedProduct;
 
   /// Whether the API requests the product thumbnail to be zoomed.
   final bool zoomImage;
@@ -29,11 +68,28 @@ class ProductModel {
     required this.price,
     required this.weight,
     required this.displayPrice,
+    this.freezedProduct = const FreezedProductStatus(),
     this.zoomImage = false,
     this.zoomLevel = 1.0,
     required this.imagePopupData,
     this.piecePopupData = const [],
   });
+
+  ProductModel copyWith({FreezedProductStatus? freezedProduct}) {
+    return ProductModel(
+      stockId: stockId,
+      stockCode: stockCode,
+      image: image,
+      price: price,
+      weight: weight,
+      displayPrice: displayPrice,
+      freezedProduct: freezedProduct ?? this.freezedProduct,
+      zoomImage: zoomImage,
+      zoomLevel: zoomLevel,
+      imagePopupData: imagePopupData,
+      piecePopupData: piecePopupData,
+    );
+  }
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
     return ProductModel(
@@ -43,6 +99,7 @@ class ProductModel {
       price: '${json['selling_price'] ?? ''}',
       weight: '${json['weight'] ?? ''}',
       displayPrice: '${json['display_price'] ?? ''}',
+      freezedProduct: FreezedProductStatus.fromJson(json['freezed_product']),
       zoomImage: '${json['zoom_image'] ?? ''}'.trim().toLowerCase() == 'yes',
       zoomLevel: _resolvedZoomLevel(json),
       imagePopupData: (json['image_popup_data'] as List<dynamic>? ?? [])

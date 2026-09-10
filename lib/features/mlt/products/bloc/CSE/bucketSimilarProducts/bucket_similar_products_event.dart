@@ -88,3 +88,10 @@ class UpdateLoadedBucketSimilarProducts extends BucketSimilarProductsEvent {
 class ResetBucketSimilarProducts extends BucketSimilarProductsEvent {
   const ResetBucketSimilarProducts();
 }
+
+class UpdateBucketProductFreezeStatus extends BucketSimilarProductsEvent {
+  final String stockCode;
+  final FreezedProductStatus status;
+  const UpdateBucketProductFreezeStatus(this.stockCode, this.status);
+  @override List<Object?> get props => [stockCode,status.freezed,status.byOwn,status.byOther,status.cseName];
+}

@@ -220,6 +220,7 @@ class BottomPillBar extends StatelessWidget {
   final VoidCallback onMyRequestList; 
   final VoidCallback onReceivedSafe;
   final VoidCallback onCustomerExperience;
+  final VoidCallback? onFreezedProducts;
 
   /// Controls layout (CSE or Storekeeper mode)
   final BottomPillBarMode mode;
@@ -232,6 +233,7 @@ class BottomPillBar extends StatelessWidget {
     required this.onMyRequestList, 
     required this.onReceivedSafe,
     required this.onCustomerExperience,
+    this.onFreezedProducts,
     this.mode = BottomPillBarMode.cse,
   });
 
@@ -298,6 +300,20 @@ class BottomPillBar extends StatelessWidget {
                   //   ),
                   // ),
                   // const SizedBox(width: 10),
+
+                  if (onFreezedProducts != null) ...[
+                    Expanded(
+                      child: _pill(
+                        context,
+                        label: 'Freezed Products',
+                        icon: Icons.ac_unit,
+                        enabled: true,
+                        primary: true,
+                        onTap: onFreezedProducts!,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                  ],
 
                   Expanded(
                     child: _pill(

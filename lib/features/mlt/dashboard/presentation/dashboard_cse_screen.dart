@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:manubhaimlt/core/theme/app_colors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:manubhaimlt/core/widgets/mj_alert_dialog.dart';
 import 'package:manubhaimlt/core/widgets/mj_dropdown_field.dart';
@@ -19,6 +20,9 @@ import 'package:manubhaimlt/features/mlt/products/data/models/CSE_models/product
 import 'package:manubhaimlt/features/mlt/products/bloc/CSE/productSearch/product_search_bloc.dart';
 import 'package:manubhaimlt/features/mlt/products/bloc/CSE/productSearch/product_search_event.dart';
 import 'package:manubhaimlt/features/mlt/products/bloc/CSE/productSearch/product_search_state.dart';
+import 'package:manubhaimlt/features/mlt/products/bloc/CSE/freezeProduct/freeze_product_bloc.dart';
+import 'package:manubhaimlt/features/mlt/products/bloc/CSE/freezeProduct/freeze_product_event.dart';
+import 'package:manubhaimlt/features/mlt/products/bloc/CSE/freezeProduct/freeze_product_state.dart';
 import 'package:manubhaimlt/features/mlt/products/bloc/CSE/requestSafe/request_safe_bloc.dart';
 import 'package:manubhaimlt/features/mlt/products/bloc/CSE/requestSafe/request_safe_event.dart';
 import 'package:manubhaimlt/features/mlt/products/bloc/CSE/requestSafe/request_safe_state.dart';
@@ -713,6 +717,11 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
                   if (GoRouterState.of(context).uri.toString() ==
                       '/a/customer-review') return;
                   context.pushReplacement('/a/customer-review');
+                },
+                onFreezedProducts: () {
+                  if (GoRouterState.of(context).uri.toString() ==
+                      '/a/freezed-products') return;
+                  context.pushReplacement('/a/freezed-products');
                 },
                 body: Padding(
                   padding: const EdgeInsets.fromLTRB(24, 10, 24, 10),
@@ -1717,6 +1726,12 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
 
             Positioned(
               left: 6,
+              bottom: 48,
+              child: _freezeControl(product),
+            ),
+
+            Positioned(
+              left: 6,
               bottom: 6,
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
@@ -1806,6 +1821,100 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
     );
   }
 
+
+  String _normalizeCseName(String value) =>
+      value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+
+  FreezedProductStatus _effectiveFreezeStatus(FreezedProductStatus status) {
+    if (!status.freezed || status.byOwn || status.cseName.trim().isEmpty) {
+      return status;
+    }
+
+    final authState = context.read<AuthBloc>().state;
+    if (authState is! AuthAuthenticated) return status;
+
+    final loggedInName =
+        _normalizeCseName('${authState.user.firstName} ${authState.user.lastName}');
+    final freezedByName = _normalizeCseName(status.cseName);
+
+    if (loggedInName.isNotEmpty && loggedInName == freezedByName) {
+      return FreezedProductStatus(
+        freezed: true,
+        byOwn: true,
+        byOther: false,
+        cseName: status.cseName,
+      );
+    }
+
+    return status;
+  }
+
+  Widget _freezeControl(ProductModel product) {
+    final status = _effectiveFreezeStatus(product.freezedProduct);
+    final auth = context.read<AuthBloc>().state;
+    final cseId = auth is AuthAuthenticated ? auth.user.id : '';
+
+    if (status.freezed) {
+      final color = status.byOwn ? AppColors.warning : AppColors.danger;
+      return InkWell(
+        onTap: () => _showFreezeInfo(status),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(4)),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.ac_unit, color: Colors.white, size: 13),
+            const SizedBox(width: 4),
+            Text(status.byOwn ? 'Freezed by you' : 'Freezed',
+                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
+          ]),
+        ),
+      );
+    }
+
+    return BlocConsumer<FreezeProductBloc, FreezeProductState>(
+      listenWhen: (_, state) => (state is FreezeProductCompleted && state.stockCode == product.stockCode) ||
+          (state is FreezeProductFailure && state.stockCode == product.stockCode),
+      listener: (context, state) {
+        if (state is FreezeProductCompleted) {
+          context.read<ProductSearchBloc>().add(UpdateProductFreezeStatus(product.stockCode, state.status));
+          if (!state.success) {
+            showMJAlertDialog(context, title: 'Freeze Product', message: state.message, primaryButtonText: 'OK');
+          }
+        } else if (state is FreezeProductFailure) {
+          showMJAlertDialog(context, title: 'Freeze Product', message: state.message, primaryButtonText: 'OK');
+        }
+      },
+      builder: (context, state) {
+        final busy = state is FreezeProductLoading && state.stockCode == product.stockCode;
+        return SizedBox(
+          height: 28,
+          child: ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.success, foregroundColor: AppColors.surface,
+              padding: const EdgeInsets.symmetric(horizontal: 8), minimumSize: const Size(0, 28),
+              textStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
+            ),
+            onPressed: busy || cseId.isEmpty ? null : () => context.read<FreezeProductBloc>().add(
+              FreezeProductRequested(cseId: cseId, stockCode: product.stockCode)),
+            icon: busy ? const SizedBox(width: 12,height: 12,child:CircularProgressIndicator(strokeWidth:2,color:AppColors.surface))
+                : const Icon(Icons.ac_unit, size: 13),
+            label: const Text('FREEZE'),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showFreezeInfo(FreezedProductStatus status) {
+    final who = status.cseName.isEmpty ? (status.byOwn ? 'you' : 'another CSE') : status.cseName;
+    return showMJAlertDialog(
+      context,
+      title: 'Freezed Product',
+      message: 'This product is freezed by $who.',
+      primaryButtonText: 'OK',
+    );
+  }
+
   void _openImageViewer(ProductModel product) {
     showDialog(
       context: context,
@@ -1879,8 +1988,8 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              const SizedBox(height: 18),
-                              Expanded(
+                              const SizedBox(height: 12),
+Expanded(
                                 child: product.imagePopupData.isEmpty
                                     ? const Center(
                                         child: Text(
@@ -1943,6 +2052,44 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
                   ),
                 ),
               ),
+              if (product.freezedProduct.freezed)
+                Positioned(
+                  right: 18,
+                  bottom: 18,
+                  child: SafeArea(
+                    child: InkWell(
+                      onTap: () => _showFreezeInfo(
+                        _effectiveFreezeStatus(product.freezedProduct),
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 7,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _effectiveFreezeStatus(
+                            product.freezedProduct,
+                          ).byOwn
+                              ? AppColors.warning
+                              : AppColors.danger,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          _effectiveFreezeStatus(
+                            product.freezedProduct,
+                          ).byOwn
+                              ? 'FREEZED BY YOU'
+                              : 'FREEZED',
+                          style: const TextStyle(
+                            color: AppColors.surface,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               Positioned(
                 top: 0,
                 right: 0,

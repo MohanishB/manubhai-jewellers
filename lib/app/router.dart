@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:manubhaimlt/features/auth/data/models/auth_user_model.dart';
 import 'package:manubhaimlt/features/mlt/dashboard/presentation/bucket_similar_products_screen.dart';
 import 'package:manubhaimlt/features/mlt/dashboard/presentation/customer_review_screen.dart';
+import 'package:manubhaimlt/features/mlt/dashboard/presentation/freezed_products_screen.dart';
 import 'package:manubhaimlt/features/mlt/dashboard/presentation/product_grid_screen.dart';
 import 'package:manubhaimlt/features/mlt/dashboard/presentation/received_safe_screen.dart';
 import 'package:manubhaimlt/features/mlt/dashboard/presentation/requested_stock_list_screen.dart';
@@ -129,6 +130,10 @@ GoRouter buildRouter(AuthBloc authBloc) {
               value: context.read<CseRequestedStockListBloc>(),
               child: const RequestedStockListScreen(),
             ),
+          ),
+          GoRoute(
+            path: 'freezed-products',
+            builder: (context, state) => const FreezedProductsScreen(),
           ),
           GoRoute(
             path: 'similar-products',
@@ -288,7 +293,7 @@ GoRouter buildRouter(AuthBloc authBloc) {
       final isAuthPage = isSplash || isWelcome || isLogin;
 
       // 🔹 1. Still loading / unknown → stay on splash
-      if (authState is AuthUnknown) {
+      if (authState is AuthUnknown || authState is AuthLoading) {
         return isSplash ? null : '/splash';
       }
 

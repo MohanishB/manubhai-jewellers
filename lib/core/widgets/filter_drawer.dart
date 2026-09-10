@@ -1377,7 +1377,7 @@ class _FilterDrawerState extends State<FilterDrawer> {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
           child: Row(
             children: [
               Expanded(
@@ -1405,6 +1405,18 @@ class _FilterDrawerState extends State<FilterDrawer> {
                 ),
               ),
             ],
+          ),
+        ),
+        const Padding(
+          padding: EdgeInsets.only(bottom: 10),
+          child: Text(
+            'Version 1.0.1',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textMuted,
+            ),
           ),
         ),
       ],
