@@ -57,3 +57,10 @@ class SearchSingleProduct extends ProductSearchEvent {
   @override
   List<Object?> get props => [stockCode, cseId];
 }
+
+class UpdateProductFreezeStatus extends ProductSearchEvent {
+  final String stockCode;
+  final FreezedProductStatus status;
+  const UpdateProductFreezeStatus(this.stockCode, this.status);
+  @override List<Object?> get props => [stockCode, status.freezed, status.byOwn, status.byOther, status.cseName];
+}

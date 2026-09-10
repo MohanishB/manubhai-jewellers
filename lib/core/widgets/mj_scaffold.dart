@@ -92,6 +92,7 @@ class MJScaffold extends StatelessWidget {
   final VoidCallback onRequestedList;
   final VoidCallback onReceivedSafe;
   final VoidCallback onCustomerExperience;
+  final VoidCallback? onFreezedProducts;
 
   final BottomPillBarMode bottomMode;
 
@@ -113,6 +114,7 @@ class MJScaffold extends StatelessWidget {
     required this.onRequestSafe,
     required this.onReceivedSafe,
     required this.onCustomerExperience,
+    this.onFreezedProducts,
     this.bottomMode = BottomPillBarMode.cse,
     this.showHome = false,
     this.onHomePressed,
@@ -152,7 +154,8 @@ class MJScaffold extends StatelessWidget {
         receivedSafeCount: receivedSafeCount,
         onRequestSafe: onRequestSafe,
         onReceivedSafe: onReceivedSafe,
-        onCustomerExperience: onCustomerExperience, 
+        onCustomerExperience: onCustomerExperience,
+        onFreezedProducts: onFreezedProducts ?? () => context.pushReplacement('/a/freezed-products'),
         onMyRequestList: onRequestedList,
       ),
     );

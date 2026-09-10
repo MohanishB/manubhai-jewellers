@@ -13,6 +13,8 @@ import 'package:manubhaimlt/features/mlt/products/bloc/CSE/customerService/custo
 import 'package:manubhaimlt/features/mlt/products/bloc/CSE/productFilters/product_filter_bloc.dart';
 import 'package:manubhaimlt/features/mlt/products/bloc/CSE/productSearch/product_search_bloc.dart';
 import 'package:manubhaimlt/features/mlt/products/bloc/CSE/requestSafe/request_safe_bloc.dart';
+import 'package:manubhaimlt/features/mlt/products/bloc/CSE/freezeProduct/freeze_product_bloc.dart';
+import 'package:manubhaimlt/features/mlt/products/bloc/CSE/freezedProducts/freezed_products_bloc.dart';
 import 'package:manubhaimlt/features/mlt/products/bloc/CSE/receivedSafe/received_safe_bloc.dart';
 import 'package:manubhaimlt/features/mlt/products/bloc/CSE/receivedSafeUpdate/received_safe_update_bloc.dart';
 import 'package:manubhaimlt/features/mlt/products/bloc/CSE/requestedList/cse_requested_stock_list_bloc.dart';
@@ -27,6 +29,7 @@ import 'package:manubhaimlt/features/mlt/products/repositories/CSE_repo/customer
 import 'package:manubhaimlt/features/mlt/products/repositories/CSE_repo/product_filter_repository.dart';
 import 'package:manubhaimlt/features/mlt/products/repositories/CSE_repo/product_search_repository.dart';
 import 'package:manubhaimlt/features/mlt/products/repositories/CSE_repo/request_safe_repository.dart';
+import 'package:manubhaimlt/features/mlt/products/repositories/CSE_repo/freeze_product_repository.dart';
 import 'package:manubhaimlt/features/mlt/products/repositories/CSE_repo/received_safe_update_repository.dart';
 import 'package:manubhaimlt/features/mlt/products/repositories/shop_keeper_repo/safe_keeper_request_detail_repository.dart';
 
@@ -93,6 +96,17 @@ Future<void> main() async {
 
         BlocProvider(
           create: (_) => RequestSafeBloc(repository: RequestSafeRepository()),
+        ),
+
+        BlocProvider(
+          create: (_) => FreezeProductBloc(
+            const FreezeProductRepository(baseUrl: baseUrl),
+          ),
+        ),
+        BlocProvider(
+          create: (_) => FreezedProductsBloc(
+            const FreezeProductRepository(baseUrl: baseUrl),
+          ),
         ),
 
         // ✅ GLOBAL: ReceivedSafeBloc (so notification handler can refresh it)

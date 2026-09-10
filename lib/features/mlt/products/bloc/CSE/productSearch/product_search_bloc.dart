@@ -26,6 +26,7 @@ class ProductSearchBloc extends Bloc<ProductSearchEvent, ProductSearchState> {
     on<UpdateLoadedProducts>(_onUpdateLoadedProducts);
     on<ResetProductSearch>(_onReset);
     on<SearchSingleProduct>(_onSearchSingleProduct);
+    on<UpdateProductFreezeStatus>(_onUpdateFreezeStatus);
   }
 
   Future<void> _onLoadProducts(
@@ -127,6 +128,17 @@ class ProductSearchBloc extends Bloc<ProductSearchEvent, ProductSearchState> {
     } catch (e) {
       emit(ProductSearchError(ApiErrorHandler.message(e)));
     }
+  }
+
+
+  void _onUpdateFreezeStatus(UpdateProductFreezeStatus event, Emitter<ProductSearchState> emit) {
+    final current = state;
+    if (current is! ProductSearchLoaded) return;
+    ProductModel update(ProductModel p) => p.stockCode == event.stockCode ? p.copyWith(freezedProduct: event.status) : p;
+    emit(current.copyWith(
+      allProducts: current.allProducts.map(update).toList(),
+      products: current.products.map(update).toList(),
+    ));
   }
 
   void _onUpdateLoadedProducts(

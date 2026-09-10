@@ -17,6 +17,9 @@ import 'package:manubhaimlt/features/mlt/products/bloc/CSE/bucketSimilarProducts
 import 'package:manubhaimlt/features/mlt/products/bloc/CSE/bucketSimilarProducts/bucket_similar_products_state.dart';
 import 'package:manubhaimlt/features/mlt/products/bloc/CSE/productFilters/product_filter_bloc.dart';
 import 'package:manubhaimlt/features/mlt/products/bloc/CSE/productFilters/product_filter_state.dart';
+import 'package:manubhaimlt/features/mlt/products/bloc/CSE/freezeProduct/freeze_product_bloc.dart';
+import 'package:manubhaimlt/features/mlt/products/bloc/CSE/freezeProduct/freeze_product_event.dart';
+import 'package:manubhaimlt/features/mlt/products/bloc/CSE/freezeProduct/freeze_product_state.dart';
 import 'package:manubhaimlt/features/mlt/products/bloc/CSE/requestSafe/request_safe_bloc.dart';
 import 'package:manubhaimlt/features/mlt/products/bloc/CSE/requestSafe/request_safe_event.dart';
 import 'package:manubhaimlt/features/mlt/products/bloc/CSE/requestSafe/request_safe_state.dart';
@@ -101,26 +104,53 @@ class _BucketSimilarProductsScreenState
   }
 
   String _cseId() {
+    // Auth context is available for both direct-search and filter flows.
+    final authState = context.read<AuthBloc>().state;
+    if (authState is AuthAuthenticated &&
+        authState.user.id.trim().isNotEmpty) {
+      return authState.user.id.trim();
+    }
+
+    // Retain the existing filter state as a fallback.
     final filterState = context.read<ProductFilterBloc>().state;
-    if (filterState is ProductFilterLoaded) {
+    if (filterState is ProductFilterLoaded &&
+        filterState.cseId.trim().isNotEmpty) {
       return filterState.cseId.trim();
     }
+
     return '';
   }
 
   String _cseMltBranch() {
+    // cse_login_log.php now supplies the canonical MLT branch, so direct
+    // stock search no longer depends on ProductFilterBloc being loaded.
+    final authState = context.read<AuthBloc>().state;
+    if (authState is AuthAuthenticated &&
+        authState.user.cseMltBranch.trim().isNotEmpty) {
+      return authState.user.cseMltBranch.trim();
+    }
+
     final filterState = context.read<ProductFilterBloc>().state;
     if (filterState is ProductFilterLoaded) {
       return filterState.cseMltBranch.trim();
     }
+
     return '';
   }
 
   List<String> _cseMltLocation() {
+    // Same source as branch: authenticated CSE context from login-log API.
+    final authState = context.read<AuthBloc>().state;
+    if (authState is AuthAuthenticated &&
+        authState.user.cseMltLocation.isNotEmpty) {
+      return List<String>.from(authState.user.cseMltLocation);
+    }
+
     final filterState = context.read<ProductFilterBloc>().state;
     if (filterState is ProductFilterLoaded) {
       return List<String>.from(filterState.cseMltLocation);
     }
+
     return const [];
   }
 
@@ -723,6 +753,11 @@ class _BucketSimilarProductsScreenState
             ),
             Positioned(
               left: 6,
+              bottom: 48,
+              child: _freezeControl(product),
+            ),
+            Positioned(
+              left: 6,
               bottom: 6,
               child: Container(
                 padding: const EdgeInsets.all(4),
@@ -803,6 +838,84 @@ class _BucketSimilarProductsScreenState
         ),
       ),
     );
+  }
+
+
+  Widget _freezeControl(ProductModel product) {
+    final status = product.freezedProduct;
+    final auth = context.read<AuthBloc>().state;
+    final cseId = auth is AuthAuthenticated ? auth.user.id : '';
+    if (status.freezed) {
+      final color = status.byOwn ? AppColors.warning : AppColors.danger;
+      return InkWell(
+        customBorder: const CircleBorder(),
+        onTap: () => _showFreezeInfo(status),
+        child: Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          alignment: Alignment.center,
+          child: const Icon(Icons.ac_unit, color: AppColors.surface, size: 24),
+        ),
+      );
+    }
+    return BlocConsumer<FreezeProductBloc, FreezeProductState>(
+      listenWhen: (_, state) => (state is FreezeProductCompleted && state.stockCode == product.stockCode) ||
+          (state is FreezeProductFailure && state.stockCode == product.stockCode),
+      listener: (context, state) {
+        if (state is FreezeProductCompleted) {
+          context.read<BucketSimilarProductsBloc>().add(UpdateBucketProductFreezeStatus(product.stockCode, state.status));
+          if (!state.success) showMJAlertDialog(context,title:'Freeze Product',message:state.message,primaryButtonText:'OK');
+        } else if (state is FreezeProductFailure) {
+          showMJAlertDialog(context,title:'Freeze Product',message:state.message,primaryButtonText:'OK');
+        }
+      },
+      builder: (context, state) {
+        final busy=state is FreezeProductLoading && state.stockCode==product.stockCode;
+        return SizedBox(
+          width: 38,
+          height: 38,
+          child: Material(
+            color: busy || cseId.isEmpty
+                ? AppColors.success.withOpacity(0.45)
+                : AppColors.success,
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: busy || cseId.isEmpty
+                  ? null
+                  : () => context.read<FreezeProductBloc>().add(
+                        FreezeProductRequested(
+                          cseId: cseId,
+                          stockCode: product.stockCode,
+                        ),
+                      ),
+              child: Center(
+                child: busy
+                    ? const SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.surface,
+                        ),
+                      )
+                    : const Icon(
+                        Icons.ac_unit,
+                        size: 24,
+                        color: AppColors.surface,
+                      ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showFreezeInfo(FreezedProductStatus status) {
+    final who=status.cseName.isEmpty?(status.byOwn?'you':'another CSE'):status.cseName;
+    return showMJAlertDialog(context,title:'Freezed Product',message:'This product is freezed by $who.',primaryButtonText:'OK');
   }
 
   Widget _pieceInfoRow(String label, String value) {
@@ -1074,6 +1187,32 @@ class _BucketSimilarProductsScreenState
                       ),
                     ),
             ),
+            if (product.freezedProduct.freezed)
+              Positioned(
+                right: 18,
+                bottom: 18,
+                child: SafeArea(
+                  child: InkWell(
+                    onTap: () => _showFreezeInfo(product.freezedProduct),
+                    child: Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: product.freezedProduct.byOwn
+                            ? AppColors.warning
+                            : AppColors.danger,
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.ac_unit,
+                        color: AppColors.surface,
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             Positioned(
               top: 24,
               right: 16,
@@ -1306,6 +1445,7 @@ class _BucketSimilarProductsScreenState
                 onRequestedList: () => context.push('/a/requested-stock-list'),
                 onReceivedSafe: () => context.push('/a/received-safe'),
                 onCustomerExperience: () => context.push('/a/customer-review'),
+                onFreezedProducts: () => context.push('/a/freezed-products'),
                 body: Padding(
                   padding: const EdgeInsets.fromLTRB(24, 10, 24, 10),
                   child: Column(

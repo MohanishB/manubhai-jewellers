@@ -1,5 +1,6 @@
 import 'package:manubhaimlt/core/errors/api_error_handler.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:manubhaimlt/features/mlt/products/data/models/CSE_models/product_search_model.dart';
 import 'package:manubhaimlt/features/mlt/products/data/models/CSE_models/similar_bucket_models.dart';
 import 'package:manubhaimlt/features/mlt/products/repositories/CSE_repo/bucket_similar_products_repository.dart';
 
@@ -19,6 +20,7 @@ class BucketSimilarProductsBloc
     on<ApplyBucketSimilarFilters>(_onApplyFilters);
     on<UpdateLoadedBucketSimilarProducts>(_onUpdateLoaded);
     on<ResetBucketSimilarProducts>(_onReset);
+    on<UpdateBucketProductFreezeStatus>(_onUpdateFreezeStatus);
   }
 
   Future<void> _onLookup(
@@ -153,6 +155,21 @@ class BucketSimilarProductsBloc
         totalFound: allProducts.length,
       ),
     );
+  }
+
+
+  void _onUpdateFreezeStatus(UpdateBucketProductFreezeStatus event, Emitter<BucketSimilarProductsState> emit) {
+    final current = state;
+    if (current is! BucketSimilarProductsLoaded) return;
+    ProductModel update(ProductModel p) => p.stockCode == event.stockCode ? p.copyWith(freezedProduct: event.status) : p;
+    emit(current.copyWith(
+      rawItems: current.rawItems.map((item) {
+        final code = item.thumbCode.isNotEmpty ? item.thumbCode : item.setNo;
+        return code == event.stockCode ? item.copyWith(freezedProduct: event.status) : item;
+      }).toList(),
+      allProducts: current.allProducts.map(update).toList(),
+      products: current.products.map(update).toList(),
+    ));
   }
 
   void _onUpdateLoaded(
