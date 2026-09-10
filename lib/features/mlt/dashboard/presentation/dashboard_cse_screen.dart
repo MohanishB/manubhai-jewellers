@@ -1857,16 +1857,14 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
     if (status.freezed) {
       final color = status.byOwn ? AppColors.warning : AppColors.danger;
       return InkWell(
+        customBorder: const CircleBorder(),
         onTap: () => _showFreezeInfo(status),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(4)),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.ac_unit, color: Colors.white, size: 13),
-            const SizedBox(width: 4),
-            Text(status.byOwn ? 'Freezed by you' : 'Freezed',
-                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
-          ]),
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          alignment: Alignment.center,
+          child: const Icon(Icons.ac_unit, color: AppColors.surface, size: 24),
         ),
       );
     }
@@ -1887,18 +1885,40 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
       builder: (context, state) {
         final busy = state is FreezeProductLoading && state.stockCode == product.stockCode;
         return SizedBox(
-          height: 28,
-          child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.success, foregroundColor: AppColors.surface,
-              padding: const EdgeInsets.symmetric(horizontal: 8), minimumSize: const Size(0, 28),
-              textStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
+          width: 38,
+          height: 38,
+          child: Material(
+            color: busy || cseId.isEmpty
+                ? AppColors.success.withOpacity(0.45)
+                : AppColors.success,
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: busy || cseId.isEmpty
+                  ? null
+                  : () => context.read<FreezeProductBloc>().add(
+                        FreezeProductRequested(
+                          cseId: cseId,
+                          stockCode: product.stockCode,
+                        ),
+                      ),
+              child: Center(
+                child: busy
+                    ? const SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.surface,
+                        ),
+                      )
+                    : const Icon(
+                        Icons.ac_unit,
+                        size: 24,
+                        color: AppColors.surface,
+                      ),
+              ),
             ),
-            onPressed: busy || cseId.isEmpty ? null : () => context.read<FreezeProductBloc>().add(
-              FreezeProductRequested(cseId: cseId, stockCode: product.stockCode)),
-            icon: busy ? const SizedBox(width: 12,height: 12,child:CircularProgressIndicator(strokeWidth:2,color:AppColors.surface))
-                : const Icon(Icons.ac_unit, size: 13),
-            label: const Text('FREEZE'),
           ),
         );
       },
@@ -2062,29 +2082,21 @@ Expanded(
                         _effectiveFreezeStatus(product.freezedProduct),
                       ),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 7,
-                        ),
+                        width: 42,
+                        height: 42,
                         decoration: BoxDecoration(
                           color: _effectiveFreezeStatus(
                             product.freezedProduct,
                           ).byOwn
                               ? AppColors.warning
                               : AppColors.danger,
-                          borderRadius: BorderRadius.circular(4),
+                          shape: BoxShape.circle,
                         ),
-                        child: Text(
-                          _effectiveFreezeStatus(
-                            product.freezedProduct,
-                          ).byOwn
-                              ? 'FREEZED BY YOU'
-                              : 'FREEZED',
-                          style: const TextStyle(
-                            color: AppColors.surface,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                          ),
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.ac_unit,
+                          color: AppColors.surface,
+                          size: 24,
                         ),
                       ),
                     ),
