@@ -4,6 +4,11 @@ import 'package:manubhaimlt/features/mlt/products/repositories/CSE_repo/freeze_p
 abstract class FreezedProductsEvent extends Equatable { const FreezedProductsEvent(); @override List<Object?> get props=>[]; }
 class LoadFreezedProducts extends FreezedProductsEvent { final String cseId; const LoadFreezedProducts(this.cseId); @override List<Object?> get props=>[cseId]; }
 class UnfreezeProductRequested extends FreezedProductsEvent { final String cseId,stockCode; const UnfreezeProductRequested(this.cseId,this.stockCode); @override List<Object?> get props=>[cseId,stockCode]; }
+class ProductsSilentlyRemovedFromFreezedList extends FreezedProductsEvent {
+ final Set<String> stockCodes;
+ const ProductsSilentlyRemovedFromFreezedList(this.stockCodes);
+ @override List<Object?> get props=>[stockCodes];
+}
 abstract class FreezedProductsState extends Equatable { const FreezedProductsState(); @override List<Object?> get props=>[]; }
 class FreezedProductsInitial extends FreezedProductsState {}
 class FreezedProductsLoading extends FreezedProductsState {}
@@ -13,4 +18,13 @@ class FreezedProductsBloc extends Bloc<FreezedProductsEvent,FreezedProductsState
  final FreezeProductRepository repository; FreezedProductsBloc(this.repository):super(FreezedProductsInitial()){
  on<LoadFreezedProducts>((e,emit) async {emit(FreezedProductsLoading()); try{emit(FreezedProductsLoaded(await repository.getFreezedProducts(e.cseId)));}catch(x){emit(FreezedProductsError(x.toString().replaceFirst('Exception: ','')));}});
  on<UnfreezeProductRequested>((e,emit) async {final s=state;if(s is! FreezedProductsLoaded)return; emit(FreezedProductsLoaded(s.products,updatingStockCode:e.stockCode));try{final r=await repository.setFreeze(cseId:e.cseId,stockCode:e.stockCode,freeze:false);if(!r.success)throw Exception(r.message);emit(FreezedProductsLoaded(s.products.where((p)=>p.stockCode!=e.stockCode).toList(),lastUnfreezedStockCode:e.stockCode));}catch(x){emit(FreezedProductsError(x.toString().replaceFirst('Exception: ','')));}});
+ on<ProductsSilentlyRemovedFromFreezedList>((e,emit) {
+   final s=state;
+   if(s is! FreezedProductsLoaded || e.stockCodes.isEmpty)return;
+   emit(FreezedProductsLoaded(
+     s.products.where((p)=>!e.stockCodes.contains(p.stockCode.trim())).toList(),
+     updatingStockCode: s.updatingStockCode != null && e.stockCodes.contains(s.updatingStockCode!.trim()) ? null : s.updatingStockCode,
+     lastUnfreezedStockCode: s.lastUnfreezedStockCode,
+   ));
+ });
  }}

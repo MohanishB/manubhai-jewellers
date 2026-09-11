@@ -846,7 +846,7 @@ class _BucketSimilarProductsScreenState
     final auth = context.read<AuthBloc>().state;
     final cseId = auth is AuthAuthenticated ? auth.user.id : '';
     if (status.freezed) {
-      final color = status.byOwn ? AppColors.warning : AppColors.danger;
+      final color = status.byOwn ? AppColors.freezeOrange : AppColors.freezeRed;
       return InkWell(
         customBorder: const CircleBorder(),
         onTap: () => _showFreezeInfo(status),
@@ -877,8 +877,8 @@ class _BucketSimilarProductsScreenState
           height: 38,
           child: Material(
             color: busy || cseId.isEmpty
-                ? AppColors.success.withOpacity(0.45)
-                : AppColors.success,
+                ? AppColors.freezeGreen.withOpacity(0.45)
+                : AppColors.freezeGreen,
             shape: const CircleBorder(),
             child: InkWell(
               customBorder: const CircleBorder(),
@@ -994,7 +994,7 @@ class _BucketSimilarProductsScreenState
     );
   }
 
-  Widget _piecePopupCard(ProductPiecePopupData piece, int index) {
+  Widget _piecePopupCard(ProductPiecePopupData piece, int index, ProductModel product) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final cardWidth = constraints.maxWidth.clamp(0.0, 1120.0);
@@ -1051,15 +1051,45 @@ class _BucketSimilarProductsScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                piece.stockCode.isNotEmpty
-                    ? piece.stockCode
-                    : 'Piece ${index + 1}',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: isPhone ? 13 : 16,
-                  fontWeight: FontWeight.w800,
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      piece.stockCode.isNotEmpty
+                          ? piece.stockCode
+                          : 'Piece ${index + 1}',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: isPhone ? 13 : 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  if (product.freezedProduct.freezed) ...[
+                    const SizedBox(width: 8),
+                    InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: () => _showFreezeInfo(product.freezedProduct),
+                      child: Container(
+                        width: isPhone ? 26 : 30,
+                        height: isPhone ? 26 : 30,
+                        decoration: BoxDecoration(
+                          color: product.freezedProduct.byOwn
+                              ? AppColors.freezeOrange
+                              : AppColors.freezeRed,
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: Icon(
+                          Icons.ac_unit,
+                          color: AppColors.surface,
+                          size: isPhone ? 16 : 18,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
               if (piece.stockCode.isNotEmpty) ...[
                 const SizedBox(height: 4),
@@ -1179,7 +1209,7 @@ class _BucketSimilarProductsScreenState
                               child: _PieceImageViewer(
                                 pieces: pieces,
                                 cardBuilder: (piece, index) =>
-                                    _piecePopupCard(piece, index),
+                                    _piecePopupCard(piece, index, product),
                               ),
                             ),
                           ],
@@ -1187,32 +1217,6 @@ class _BucketSimilarProductsScreenState
                       ),
                     ),
             ),
-            if (product.freezedProduct.freezed)
-              Positioned(
-                right: 18,
-                bottom: 18,
-                child: SafeArea(
-                  child: InkWell(
-                    onTap: () => _showFreezeInfo(product.freezedProduct),
-                    child: Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: product.freezedProduct.byOwn
-                            ? AppColors.warning
-                            : AppColors.danger,
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: const Icon(
-                        Icons.ac_unit,
-                        color: AppColors.surface,
-                        size: 24,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
             Positioned(
               top: 24,
               right: 16,

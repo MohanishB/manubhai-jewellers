@@ -21,6 +21,7 @@ class BucketSimilarProductsBloc
     on<UpdateLoadedBucketSimilarProducts>(_onUpdateLoaded);
     on<ResetBucketSimilarProducts>(_onReset);
     on<UpdateBucketProductFreezeStatus>(_onUpdateFreezeStatus);
+    on<BucketProductsSilentlyUnfreezed>(_onProductsSilentlyUnfreezed);
   }
 
   Future<void> _onLookup(
@@ -170,6 +171,38 @@ class BucketSimilarProductsBloc
       allProducts: current.allProducts.map(update).toList(),
       products: current.products.map(update).toList(),
     ));
+  }
+
+
+  void _onProductsSilentlyUnfreezed(
+    BucketProductsSilentlyUnfreezed event,
+    Emitter<BucketSimilarProductsState> emit,
+  ) {
+    final current = state;
+    if (current is! BucketSimilarProductsLoaded || event.stockCodes.isEmpty) {
+      return;
+    }
+
+    const available = FreezedProductStatus();
+    ProductModel update(ProductModel product) {
+      return event.stockCodes.contains(product.stockCode.trim())
+          ? product.copyWith(freezedProduct: available)
+          : product;
+    }
+
+    emit(
+      current.copyWith(
+        rawItems: current.rawItems.map((item) {
+          final code =
+              (item.thumbCode.isNotEmpty ? item.thumbCode : item.setNo).trim();
+          return event.stockCodes.contains(code)
+              ? item.copyWith(freezedProduct: available)
+              : item;
+        }).toList(),
+        allProducts: current.allProducts.map(update).toList(),
+        products: current.products.map(update).toList(),
+      ),
+    );
   }
 
   void _onUpdateLoaded(

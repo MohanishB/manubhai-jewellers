@@ -27,6 +27,7 @@ class ProductSearchBloc extends Bloc<ProductSearchEvent, ProductSearchState> {
     on<ResetProductSearch>(_onReset);
     on<SearchSingleProduct>(_onSearchSingleProduct);
     on<UpdateProductFreezeStatus>(_onUpdateFreezeStatus);
+    on<ProductsSilentlyUnfreezed>(_onProductsSilentlyUnfreezed);
   }
 
   Future<void> _onLoadProducts(
@@ -139,6 +140,29 @@ class ProductSearchBloc extends Bloc<ProductSearchEvent, ProductSearchState> {
       allProducts: current.allProducts.map(update).toList(),
       products: current.products.map(update).toList(),
     ));
+  }
+
+
+  void _onProductsSilentlyUnfreezed(
+    ProductsSilentlyUnfreezed event,
+    Emitter<ProductSearchState> emit,
+  ) {
+    final current = state;
+    if (current is! ProductSearchLoaded || event.stockCodes.isEmpty) return;
+
+    const available = FreezedProductStatus();
+    ProductModel update(ProductModel product) {
+      return event.stockCodes.contains(product.stockCode.trim())
+          ? product.copyWith(freezedProduct: available)
+          : product;
+    }
+
+    emit(
+      current.copyWith(
+        allProducts: current.allProducts.map(update).toList(),
+        products: current.products.map(update).toList(),
+      ),
+    );
   }
 
   void _onUpdateLoadedProducts(

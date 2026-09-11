@@ -5,6 +5,7 @@
 // import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 // import 'package:manubhaimlt/core/services/firebase_options.dart';
 // import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // /// Global singletons
 // final FirebaseMessaging fcm = FirebaseMessaging.instance;
@@ -115,6 +116,7 @@
 // import 'package:manubhaimlt/features/mlt/products/bloc/store_keeper/safe_keeper_bloc.dart';
 // import 'package:manubhaimlt/features/mlt/products/bloc/store_keeper/safe_keeper_event.dart';
 // import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // /// 🔥 Global singletons
 // final FirebaseMessaging fcm = FirebaseMessaging.instance;
@@ -294,6 +296,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'firebase_options.dart';
 
@@ -309,6 +312,14 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   print('📩 [BACKGROUND HANDLER] Message ID: ${message.messageId}');
   print('📩 [BACKGROUND HANDLER] Data: ${message.data}');
+
+  // Background FCM runs in a separate Dart isolate, so it cannot touch the
+  // widget tree / BLoCs directly. Persist product-unfreeze codes and let the
+  // foreground isolate apply them when the app resumes/starts.
+  if (ProductUnfreezeBus.isProductUnfreezeData(message.data)) {
+    final stockCodes = ProductUnfreezeBus.parseStockCodes(message.data);
+    await ProductUnfreezeBus.storePending(stockCodes);
+  }
 }
 
 class FirebaseInitializer {
@@ -325,6 +336,15 @@ class FirebaseInitializer {
 
     final token = await fcm.getToken();
     print('📱 [FCM TOKEN] $token');
+
+    // Product availability sync topic. FCM creates the topic automatically
+    // when clients subscribe; no Firebase Console campaign is required.
+    try {
+      await fcm.subscribeToTopic(ProductUnfreezeBus.topicName);
+      print('✅ [FCM TOPIC] subscribed=${ProductUnfreezeBus.topicName}');
+    } catch (e) {
+      print('⚠️ [FCM TOPIC] subscription failed: $e');
+    }
   }
 
   static Future<void> _requestNotificationPermission() async {
@@ -398,6 +418,12 @@ class FirebaseInitializer {
       print('📩 [FOREGROUND] Body: ${message.notification?.body}');
       print('📩 [FOREGROUND] Data: ${message.data}');
 
+      if (ProductUnfreezeBus.isProductUnfreezeData(message.data)) {
+        ProductUnfreezeBus.emit(
+          ProductUnfreezeBus.parseStockCodes(message.data),
+        );
+      }
+
       final n = message.notification;
       if (n == null) return;
 
@@ -436,5 +462,77 @@ class NotificationTapBus {
 
   static void emit(Map<String, dynamic> data) {
     _controller.add(Map<String, dynamic>.from(data));
+  }
+}
+
+
+/// Broadcasts backend-driven product unfreeze events to the foreground app.
+///
+/// Contract:
+/// topic: products_unfreeze
+/// data.type: products_unfreeze
+/// data.stock_codes: comma-separated stock codes
+class ProductUnfreezeBus {
+  static const String topicName = 'products_unfreeze';
+  static const String messageType = 'products_unfreeze';
+  static const String _pendingPrefsKey = 'pending_product_unfreeze_stock_codes';
+
+  static final _controller = StreamController<Set<String>>.broadcast();
+
+  static Stream<Set<String>> get stream => _controller.stream;
+
+  static bool isProductUnfreezeData(Map<String, dynamic> data) {
+    return (data['type'] ?? '').toString().trim() == messageType;
+  }
+
+  static Set<String> parseStockCodes(Map<String, dynamic> data) {
+    final raw = (data['stock_codes'] ?? '').toString();
+    return raw
+        .split(',')
+        .map((code) => code.trim())
+        .where((code) => code.isNotEmpty)
+        .toSet();
+  }
+
+  static void emit(Iterable<String> stockCodes) {
+    final normalized = stockCodes
+        .map((code) => code.trim())
+        .where((code) => code.isNotEmpty)
+        .toSet();
+    if (normalized.isEmpty) return;
+    _controller.add(normalized);
+  }
+
+  static Future<void> storePending(Iterable<String> stockCodes) async {
+    final normalized = stockCodes
+        .map((code) => code.trim())
+        .where((code) => code.isNotEmpty)
+        .toSet();
+    if (normalized.isEmpty) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final existing =
+        prefs.getStringList(_pendingPrefsKey)?.map((e) => e.trim()).toSet() ??
+            <String>{};
+    existing.addAll(normalized);
+    await prefs.setStringList(_pendingPrefsKey, existing.toList());
+    print('💾 [PRODUCT UNFREEZE] queued=$normalized');
+  }
+
+  static Future<Set<String>> takePending() async {
+    final prefs = await SharedPreferences.getInstance();
+    // SharedPreferences may have been opened by another isolate.
+    await prefs.reload();
+    final pending = prefs
+            .getStringList(_pendingPrefsKey)
+            ?.map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toSet() ??
+        <String>{};
+
+    if (pending.isNotEmpty) {
+      await prefs.remove(_pendingPrefsKey);
+    }
+    return pending;
   }
 }
