@@ -183,6 +183,11 @@ import '../features/auth/bloc/auth_bloc.dart';
 import '../features/auth/bloc/auth_state.dart';
 import '../features/mlt/products/bloc/CSE/receivedSafe/received_safe_bloc.dart';
 import '../features/mlt/products/bloc/CSE/receivedSafe/received_safe_event.dart';
+import '../features/mlt/products/bloc/CSE/productSearch/product_search_bloc.dart';
+import '../features/mlt/products/bloc/CSE/productSearch/product_search_event.dart';
+import '../features/mlt/products/bloc/CSE/bucketSimilarProducts/bucket_similar_products_bloc.dart';
+import '../features/mlt/products/bloc/CSE/bucketSimilarProducts/bucket_similar_products_event.dart';
+import '../features/mlt/products/bloc/CSE/freezedProducts/freezed_products_bloc.dart';
 import '../features/mlt/products/bloc/store_keeper/safe_keeper_bloc.dart';
 import '../features/mlt/products/bloc/store_keeper/safe_keeper_event.dart';
 
@@ -196,6 +201,7 @@ class MJMLTApp extends StatefulWidget {
 class _MJMLTAppState extends State<MJMLTApp> with WidgetsBindingObserver {
   late final GoRouter _router;
   late final StreamSubscription<Map<String, dynamic>> _tapSub;
+  late final StreamSubscription<Set<String>> _productUnfreezeSub;
 
   AppLifecycleState? _lastLifecycleState;
   bool _resumeLoginLogInProgress = false;
@@ -214,6 +220,10 @@ class _MJMLTAppState extends State<MJMLTApp> with WidgetsBindingObserver {
       _handleTapData(data);
     });
 
+    _productUnfreezeSub = ProductUnfreezeBus.stream.listen((stockCodes) {
+      _applyProductUnfreezes(stockCodes);
+    });
+
     // ✅ KILLED state tap (must be after UI is ready)
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final initial = await FirebaseMessaging.instance.getInitialMessage();
@@ -221,6 +231,7 @@ class _MJMLTAppState extends State<MJMLTApp> with WidgetsBindingObserver {
         print('🚀 [SYSTEM TAP - TERMINATED] Data: ${initial.data}');
         _handleTapData(initial.data);
       }
+      await _syncPendingProductUnfreezes();
     });
   }
 
@@ -228,6 +239,7 @@ class _MJMLTAppState extends State<MJMLTApp> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _tapSub.cancel();
+    _productUnfreezeSub.cancel();
     super.dispose();
   }
 
@@ -245,6 +257,7 @@ class _MJMLTAppState extends State<MJMLTApp> with WidgetsBindingObserver {
 
     if (cameToForeground) {
       _sendLoginLogOnResume();
+      _syncPendingProductUnfreezes();
     }
   }
 
@@ -273,6 +286,39 @@ class _MJMLTAppState extends State<MJMLTApp> with WidgetsBindingObserver {
     } finally {
       _resumeLoginLogInProgress = false;
     }
+  }
+
+
+  Future<void> _syncPendingProductUnfreezes() async {
+    if (!mounted || context.read<AuthBloc>().state is! AuthAuthenticated) {
+      return;
+    }
+
+    final pending = await ProductUnfreezeBus.takePending();
+    if (!mounted || pending.isEmpty) return;
+    _applyProductUnfreezes(pending);
+  }
+
+  void _applyProductUnfreezes(Set<String> stockCodes) {
+    if (!mounted || stockCodes.isEmpty) return;
+
+    final normalized = stockCodes
+        .map((code) => code.trim())
+        .where((code) => code.isNotEmpty)
+        .toSet();
+    if (normalized.isEmpty) return;
+
+    context
+        .read<ProductSearchBloc>()
+        .add(ProductsSilentlyUnfreezed(normalized));
+    context
+        .read<BucketSimilarProductsBloc>()
+        .add(BucketProductsSilentlyUnfreezed(normalized));
+    context
+        .read<FreezedProductsBloc>()
+        .add(ProductsSilentlyRemovedFromFreezedList(normalized));
+
+    print('✅ [PRODUCT UNFREEZE] applied=$normalized');
   }
 
   void _handleTapData(Map<String, dynamic> data) async {
@@ -337,8 +383,14 @@ class _MJMLTAppState extends State<MJMLTApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return BlocListener<AuthBloc, AuthState>(
-      listenWhen: (prev, curr) => curr is AuthUnauthenticated,
+      listenWhen: (prev, curr) =>
+          curr is AuthAuthenticated || curr is AuthUnauthenticated,
       listener: (context, state) {
+        if (state is AuthAuthenticated) {
+          _syncPendingProductUnfreezes();
+          return;
+        }
+
         // ✅ LOGOUT SUCCESS -> reset filter bloc globally
         context.read<ProductFilterBloc>().add(const ResetProductFilters());
         print('🧹 [GLOBAL] ProductFilterBloc reset on logout');

@@ -43,6 +43,11 @@ class AppColors {
   static const Color warning = Color(0xFFF59E0B);
   static const Color danger = Color(0xFFDC2626);
 
+
+  static const Color freezeGreen = Color(0xFF4CAF72); // Softer green
+  static const Color freezeOrange = Color(0xFFF4B74A); // Softer amber/orange
+  static const Color freezeRed  = Color(0xFFE35D5D); // Softer red
+
   // Icons
   static const Color dropDownIcon = Color(0xFF616161);
 }

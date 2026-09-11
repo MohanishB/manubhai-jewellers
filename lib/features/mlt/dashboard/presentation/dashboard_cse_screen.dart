@@ -1855,7 +1855,7 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
     final cseId = auth is AuthAuthenticated ? auth.user.id : '';
 
     if (status.freezed) {
-      final color = status.byOwn ? AppColors.warning : AppColors.danger;
+      final color = status.byOwn ? AppColors.freezeOrange : AppColors.freezeRed;
       return InkWell(
         customBorder: const CircleBorder(),
         onTap: () => _showFreezeInfo(status),
@@ -1889,8 +1889,8 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
           height: 38,
           child: Material(
             color: busy || cseId.isEmpty
-                ? AppColors.success.withOpacity(0.45)
-                : AppColors.success,
+                ? AppColors.freezeGreen.withOpacity(0.45)
+                : AppColors.freezeGreen,
             shape: const CircleBorder(),
             child: InkWell(
               customBorder: const CircleBorder(),
@@ -1991,13 +1991,49 @@ class _DashboardCSEScreenState extends State<DashboardCSEScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                product.stockCode,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w800,
-                                ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      product.stockCode,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                  if (product.freezedProduct.freezed) ...[
+                                    const SizedBox(width: 8),
+                                    InkWell(
+                                      customBorder: const CircleBorder(),
+                                      onTap: () => _showFreezeInfo(
+                                        _effectiveFreezeStatus(
+                                          product.freezedProduct,
+                                        ),
+                                      ),
+                                      child: Container(
+                                        width: 30,
+                                        height: 30,
+                                        decoration: BoxDecoration(
+                                          color: _effectiveFreezeStatus(
+                                            product.freezedProduct,
+                                          ).byOwn
+                                              ? AppColors.freezeOrange
+                                              : AppColors.freezeRed,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        alignment: Alignment.center,
+                                        child: const Icon(
+                                          Icons.ac_unit,
+                                          color: AppColors.surface,
+                                          size: 18,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                               const SizedBox(height: 6),
                               Text(
@@ -2072,36 +2108,6 @@ Expanded(
                   ),
                 ),
               ),
-              if (product.freezedProduct.freezed)
-                Positioned(
-                  right: 18,
-                  bottom: 18,
-                  child: SafeArea(
-                    child: InkWell(
-                      onTap: () => _showFreezeInfo(
-                        _effectiveFreezeStatus(product.freezedProduct),
-                      ),
-                      child: Container(
-                        width: 42,
-                        height: 42,
-                        decoration: BoxDecoration(
-                          color: _effectiveFreezeStatus(
-                            product.freezedProduct,
-                          ).byOwn
-                              ? AppColors.warning
-                              : AppColors.danger,
-                          shape: BoxShape.circle,
-                        ),
-                        alignment: Alignment.center,
-                        child: const Icon(
-                          Icons.ac_unit,
-                          color: AppColors.surface,
-                          size: 24,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
               Positioned(
                 top: 0,
                 right: 0,
